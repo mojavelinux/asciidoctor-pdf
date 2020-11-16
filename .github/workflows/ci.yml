@@ -37,24 +37,26 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        ruby: [jruby-9.2, '2.5', '2.6', '2.7']
+        #os: [ubuntu-latest, windows-latest]
+        #ruby: [jruby-9.2, '2.5', '2.6', '2.7']
+        os: [windows-latest]
+        ruby: ['2.7']
         prawn: [~]
-        exclude:
-        - os: ubuntu-latest
-          ruby: '2.7'
-        include:
-        - os: macos-latest
-          ruby: '2.7'
-        - os: ubuntu-latest
-          ruby: '2.5'
-          rouge-version: '~> 2.0.0'
-        - os: ubuntu-latest
-          ruby: '2.7'
-          prawn: dev
-        - os: ubuntu-latest
-          ruby: '2.7'
-          primary: true
+        #exclude:
+        #- os: ubuntu-latest
+        #  ruby: '2.7'
+        #include:
+        #- os: macos-latest
+        #  ruby: '2.7'
+        #- os: ubuntu-latest
+        #  ruby: '2.5'
+        #  rouge-version: '~> 2.0.0'
+        #- os: ubuntu-latest
+        #  ruby: '2.7'
+        #  prawn: dev
+        #- os: ubuntu-latest
+        #  ruby: '2.7'
+        #  primary: true
     runs-on: ${{ matrix.os }}
     env:
       MENTOS_TIMEOUT: 30 # give pygments.rb calls more time to execute (in seconds)
@@ -84,10 +86,10 @@ jobs:
     - name: Install Ghostscript and Poppler (macOS)
       if: matrix.os == 'macos-latest'
       run: brew install ghostscript poppler
-    - name: Install Ghostscript and add path to env (Windows)
+    - name: Install Ghostscript and Poppler and set GS env var (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        choco install --no-progress ghostscript
+        choco install --no-progress ghostscript poppler
         echo "GS=$(& where.exe /R 'C:\Program Files\gs' gswin64c.exe)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: Install dependencies
       run: bundle --jobs 3 --retry 3
