@@ -714,7 +714,7 @@ module Asciidoctor
       def layout_footnotes node
         return if (fns = (doc = node.document).footnotes - @rendered_footnotes).empty?
         theme_margin :footnotes, :top
-        with_dry_run do |box_height = nil|
+        with_old_dry_run do |box_height = nil|
           if box_height && (delta = cursor - box_height) > 0
             move_down delta
           end
@@ -881,10 +881,10 @@ module Asciidoctor
         shift_base = @theme.prose_margin_bottom
         shift_top = shift_base / 3.0
         shift_bottom = (shift_base * 2) / 3.0
-        keep_together do |box_height = nil, advanced = nil|
+        old_keep_together do |box_height = nil, advanced = nil|
           add_dest_for_block node, y: (advanced ? nil : @y + top_margin) if node.id
           push_scratch doc if scratch?
-          theme_fill_and_stroke_block :admonition, box_height if box_height
+          old_theme_fill_and_stroke_block :admonition, box_height if box_height
           pad_box [0, cpad[1], 0, lpad[3]] do
             if box_height
               label_height = [box_height, cursor].min
@@ -1017,21 +1017,17 @@ module Asciidoctor
 
       def convert_example node
         return convert_open node if node.option? 'collapsible'
-        add_dest_for_block node if node.id
         theme_margin :block, :top
-        caption_height = node.title? ? (layout_caption node, category: :example, dry_run: true) : 0
-        keep_together do |box_height = nil|
+        arrange_block node do |extent|
           push_scratch node.document if scratch?
-          if box_height
-            theme_fill_and_stroke_block :example, box_height, caption_node: node
-          else
-            move_down caption_height
-          end
+          add_dest_for_block node if node.id # Q: do we want to put anchor above top margin instead?
+          theme_fill_and_stroke_block :example, extent, caption_node: node
           pad_box @theme.example_padding do
             theme_font :example do
               traverse node
             end
           end
+        ensure
           pop_scratch node.document if scratch?
         end
         theme_margin :block, :bottom
@@ -1040,7 +1036,7 @@ module Asciidoctor
       def convert_open node
         return convert_abstract node if node.style == 'abstract'
         doc = node.document
-        keep_together_if node.option? 'unbreakable' do
+        old_keep_together_if node.option? 'unbreakable' do
           push_scratch doc if scratch?
           add_dest_for_block node if node.id
           node.context == :example ? (layout_caption %(\u25bc #{node.title})) : (layout_caption node, labeled: false) if node.title?
@@ -1058,9 +1054,9 @@ module Asciidoctor
           b_left_width = nil
           b_width = nil if (b_width = @theme[%(#{category}_border_width)]) == 0
         end
-        keep_together do |box_height = nil|
+        old_keep_together do |box_height = nil|
           push_scratch node.document if scratch?
-          theme_fill_and_stroke_block category, box_height, border_width: b_width if box_height && (b_width || @theme[%(#{category}_background_color)])
+          old_theme_fill_and_stroke_block category, box_height, border_width: b_width if box_height && (b_width || @theme[%(#{category}_background_color)])
           start_page_number = page_number
           start_cursor = cursor
           caption_height = node.title? ? (layout_caption node, category: category, labeled: false) : 0
@@ -1130,11 +1126,11 @@ module Asciidoctor
       alias convert_verse convert_quote_or_verse
 
       def convert_sidebar node
-        add_dest_for_block node if node.id
         theme_margin :block, :top
-        keep_together do |box_height = nil|
+        arrange_block node do |extent|
           push_scratch node.document if scratch?
-          theme_fill_and_stroke_block :sidebar, box_height if box_height
+          add_dest_for_block node if node.id
+          theme_fill_and_stroke_block :sidebar, extent if extent
           pad_box @theme.sidebar_padding do
             theme_font :sidebar_title do
               # QUESTION: should we allow margins of sidebar title to be customized?
@@ -1144,6 +1140,7 @@ module Asciidoctor
               traverse node
             end
           end
+        ensure
           pop_scratch node.document if scratch?
         end
         theme_margin :block, :bottom
@@ -1646,6 +1643,7 @@ module Asciidoctor
           layout_caption node, category: :image, side: :bottom, block_align: alignment, block_width: rendered_w, max_width: @theme.image_caption_max_width if node.title?
           theme_margin :block, :bottom unless pinned
         rescue => e
+          raise if ::StopIteration === e
           on_image_error :exception, node, target, (opts.merge message: %(could not embed image: #{image_path}; #{e.message}#{::Prawn::Errors::UnsupportedImageType === e && !(defined? ::GMagick::Image) ? '; install prawn-gmagick gem to add support' : ''}))
         end
       end
@@ -1867,11 +1865,11 @@ module Asciidoctor
 
         top_margin = theme_margin :block, :top
 
-        keep_together do |box_height = nil, advanced = nil|
+        old_keep_together do |box_height = nil, advanced = nil|
           add_dest_for_block node, y: (advanced ? nil : @y + top_margin) if node.id
           caption_height = node.title? ? (layout_caption node, category: :code) : 0
           theme_font :code do
-            theme_fill_and_stroke_block :code, (box_height - caption_height), background_color: bg_color_override, split_from_top: false if box_height
+            old_theme_fill_and_stroke_block :code, (box_height - caption_height), background_color: bg_color_override, split_from_top: false if box_height
             pad_box @theme.code_padding do
               ::Prawn::Text::Formatted::Box.extensions << wrap_ext if wrap_ext
               typeset_formatted_text source_chunks, (calc_line_metrics @theme.code_line_height || @theme.base_line_height),
@@ -2986,7 +2984,7 @@ module Asciidoctor
       def layout_caption subject, opts = {}
         if opts.delete :dry_run
           height = nil
-          dry_run do
+          old_dry_run do
             move_down 0.001 # HACK: force top margin to be applied
             height = layout_caption subject, opts
           end
@@ -3083,7 +3081,7 @@ module Asciidoctor
       def allocate_toc doc, toc_num_levels, toc_start_y, use_title_page
         toc_page_nums = page_number
         toc_end = nil
-        dry_run do
+        old_dry_run do
           toc_page_nums = layout_toc doc, toc_num_levels, toc_page_nums, toc_start_y
           move_down @theme.block_margin_bottom unless use_title_page
           toc_end = @y
@@ -3808,7 +3806,77 @@ module Asciidoctor
           radius: @theme[%(#{category}_border_radius)]
       end
 
-      def theme_fill_and_stroke_block category, block_height, opts = {}
+      def theme_fill_and_stroke_block category, extent, opts = {}
+        node_with_caption = nil unless (node_with_caption = opts[:caption_node])&.title?
+        unless extent
+          layout_caption node_with_caption, category: category if node_with_caption
+          return
+        end
+        if (b_width = (opts.key? :border_width) ? opts[:border_width] : @theme[%(#{category}_border_width)])
+          if ::Array === b_width
+            b_width = b_width[0]
+            b_radius = 0
+          end
+          b_width = nil unless b_width.to_f > 0
+        end
+        if (bg_color = opts[:background_color] || @theme[%(#{category}_background_color)]) == 'transparent'
+          bg_color = nil
+        end
+        unless b_width || bg_color
+          if node_with_caption
+            layout_caption node_with_caption, category: category
+            extent.shift_to page_number, cursor unless extent.on_first_page? page_number
+          end
+          return
+        end
+        if (b_color = @theme[%(#{category}_border_color)]) == 'transparent'
+          b_color = @page_bg_color
+        end
+        b_radius ||= (@theme[%(#{category}_border_radius)] || 0) + (b_width || 0)
+        if b_width && b_color
+          if b_color == @page_bg_color # let page background cut into block background
+            b_gap_color, b_shift = @page_bg_color, (b_width * 0.5)
+          elsif (b_gap_color = bg_color) && b_gap_color != b_color
+            b_shift = 0
+          else # let page background cut into border
+            b_gap_color, b_shift = @page_bg_color, 0
+          end
+        else # let page background cut into block background
+          b_shift, b_gap_color = (b_width ||= 0.5) * 0.5, @page_bg_color
+        end
+        if node_with_caption
+          layout_caption node_with_caption, category: category
+          extent.shift_to page_number, cursor unless extent.on_first_page? page_number
+        end
+        float do
+          extent.each_page do |_pagenum, first_page, last_page|
+            advance_page unless first_page
+            chunk_height = start_cursor = cursor
+            chunk_height -= last_page.cursor if last_page
+            bounding_box [0, start_cursor], width: bounds.width, height: chunk_height do
+              theme_fill_and_stroke_bounds category, background_color: bg_color
+              if b_width
+                unless first_page
+                  indent b_radius, b_radius do
+                    # dashed line indicates continuation from previous page; swell line slightly to cover background
+                    stroke_horizontal_rule b_gap_color, line_width: b_width * 1.2, line_style: :dashed, at: b_shift
+                  end
+                end
+                unless last_page
+                  move_down chunk_height - b_shift
+                  indent b_radius, b_radius do
+                    # dashed line indicates continuation from previous page; swell line slightly to cover background
+                    stroke_horizontal_rule b_gap_color, line_width: b_width * 1.2, line_style: :dashed
+                  end
+                end
+              end
+            end
+          end
+        end
+        nil
+      end
+
+      def old_theme_fill_and_stroke_block category, block_height, opts = {}
         if (b_width = (opts.key? :border_width) ? opts[:border_width] : @theme[%(#{category}_border_width)])
           if ::Array === b_width
             b_width = b_width[0]

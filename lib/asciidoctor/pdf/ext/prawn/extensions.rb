@@ -32,6 +32,83 @@ module Asciidoctor
       # - :final_gap determines whether a gap is added below the last line
       LineMetrics = ::Struct.new :height, :leading, :padding_top, :padding_bottom, :final_gap
 
+      Position = ::Struct.new :page, :cursor
+
+      Extent = ::Struct.new :current, :from, :to do
+        def initialize current_page, current_cursor, start_page, start_cursor, end_page, end_cursor
+          self.current = Position.new current_page, current_cursor
+          self.from = Position.new start_page, start_cursor
+          self.to = Position.new end_page, end_cursor
+        end
+
+        def each_page
+          from.page.upto to.page do |pagenum|
+            yield pagenum, pagenum == from.page && from, pagenum == to.page && to
+          end
+        end
+
+        def single_page?
+          from.page == to.page
+        end
+
+        def advanced?
+          current.page < to.page
+        end
+
+        def single_page_height
+          from.page == to.page ? from.cursor - to.cursor : nil
+        end
+
+        def on_first_page? reference_page
+          reference_page == from.page
+        end
+
+        def shift_to new_start_page, new_start_cursor
+          self.from = Position.new new_start_page, new_start_cursor
+        end
+      end
+
+      ScratchExtent = ::Struct.new :from, :to do
+        def initialize start_page, start_cursor, end_page, end_cursor
+          self.from = Position.new start_page, start_cursor
+          self.to = Position.new end_page, end_cursor
+        end
+
+        def compute_from from_page, current_cursor, advanced
+          current_page = from_page - (advanced ? 1 : 0)
+          Extent.new current_page, current_cursor, current_page - 1 + from.page, from.cursor, current_page - 1 + to.page, to.cursor
+        end
+
+        def single_page?
+          from.page == to.page
+        end
+
+        def try_to_fit_on_previous reference_cursor
+          if single_page? && (height = from.cursor - to.cursor) <= reference_cursor
+            from.cursor = reference_cursor
+            to.cursor = reference_cursor - height
+            true
+          else
+            false
+          end
+        end
+      end
+
+      NewPageRequiredError = ::Class.new ::StopIteration
+
+      InhibitNewPageProc = proc do |pdf|
+        pdf.delete_page
+        raise NewPageRequiredError
+      end
+
+      DetectEmptyFirstPageProc = proc do |original_callback, pdf|
+        if pdf.state.pages[pdf.page_number - 2].empty?
+          pdf.delete_page
+          raise NewPageRequiredError
+        end
+        original_callback[pdf] if (pdf.state.on_page_create_callback = original_callback)
+      end
+
       # Core
 
       # Retrieves the catalog reference data for the PDF.
@@ -761,7 +838,7 @@ module Asciidoctor
       # Perform an operation (such as creating a new page) without triggering the on_page_create callback
       #
       def perform_discretely
-        saved_callback, state.on_page_create_callback = state.on_page_create_callback, nil
+        state.on_page_create_callback = nil if (saved_callback = state.on_page_create_callback) != InhibitNewPageProc
         yield
       ensure
         state.on_page_create_callback = saved_callback
@@ -795,7 +872,94 @@ module Asciidoctor
       end
       alias is_scratch? scratch?
 
-      def dry_run &block
+      def arrange_block node, &block
+        start_cursor = cursor
+        #keep_together = (node.option? 'unbreakable') && !at_page_top?
+        keep_together = !at_page_top?
+        scratch_extent = dry_run keep_together, &block
+        # Q: can we encapsulate advance page logic?
+        advance_page if (advanced = scratch_extent.from.page != 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
+        instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &block
+      end
+
+      def perform_on_single_page pdf
+        saved_callback = (pdf_state = pdf.state).on_page_create_callback
+        pdf_state.on_page_create_callback = InhibitNewPageProc
+        yield
+        false
+      rescue NewPageRequiredError
+        true
+      ensure
+        pdf_state.on_page_create_callback = saved_callback
+      end
+
+      def stop_if_first_page_empty pdf
+        saved_callback = (pdf_state = pdf.state).on_page_create_callback
+        pdf_state.on_page_create_callback = DetectEmptyFirstPageProc.curry[saved_callback]
+        yield
+        false
+      rescue NewPageRequiredError
+        true
+      ensure
+        pdf_state.on_page_create_callback = saved_callback
+      end
+
+      def dry_run keep_together = false, start_from_top = nil, &block
+        (scratch_pdf = scratch).start_new_page
+        scratch_pdf.instance_variable_set :@y, y unless keep_together || start_from_top
+        scratch_start_page = scratch_pdf.page_number
+        scratch_start_cursor = scratch_pdf.cursor
+        scratch_bounds = scratch_pdf.bounds
+        original_x = scratch_bounds.absolute_left
+        original_width = scratch_bounds.width
+        scratch_bounds.instance_variable_set :@x, bounds.absolute_left
+        scratch_bounds.instance_variable_set :@width, bounds.width
+        if keep_together
+          restart = perform_on_single_page scratch_pdf do
+            scratch_pdf.font(font_family, style: font_style, size: font_size) { scratch_pdf.instance_exec(&block) }
+          end
+        elsif scratch_pdf.at_page_top?
+          scratch_pdf.font(font_family, style: font_style, size: font_size) { scratch_pdf.instance_exec(&block) }
+        else
+          restart = stop_if_first_page_empty scratch_pdf do
+            scratch_pdf.font(font_family, style: font_style, size: font_size) { scratch_pdf.instance_exec(&block) }
+          end
+          start_from_top = (start_from_top || 0) + 1 if restart
+        end
+        scratch_bounds.instance_variable_set :@x, original_x
+        scratch_bounds.instance_variable_set :@width, original_width
+        return dry_run false, start_from_top, &block if restart
+        scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
+        if start_from_top
+          scratch_start_page += start_from_top
+          scratch_end_page += start_from_top
+        end
+        scratch_end_cursor = scratch_pdf.cursor
+        # NOTE: drop trailing blank page and move cursor to end of previous page
+        if scratch_end_page > scratch_start_page && scratch_pdf.at_page_top?
+          scratch_end_page -= 1
+          scratch_end_cursor = 0
+        end
+        # Q: should start page be virtual or should it be actual and pass the offset on which we started
+        ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_end_page, scratch_end_cursor
+      end
+
+      def simple_dry_run start_from_top = false, &block
+        (scratch_pdf = scratch).start_new_page
+        scratch_pdf.instance_variable_set :@y, y unless start_from_top
+        scratch_bounds = scratch_pdf.bounds
+        original_x = scratch_bounds.absolute_left
+        original_width = scratch_bounds.width
+        scratch_bounds.instance_variable_set :@x, bounds.absolute_left
+        scratch_bounds.instance_variable_set :@width, bounds.width
+        result = nil
+        scratch_pdf.font(font_family, style: font_style, size: font_size) { result = scratch_pdf.instance_exec(&block) }
+        scratch_bounds.instance_variable_set :@x, original_x
+        scratch_bounds.instance_variable_set :@width, original_width
+        result
+      end
+
+      def old_dry_run &block
         scratch_pdf = scratch
         # QUESTION: should we use scratch_pdf.advance_page instead?
         scratch_pdf.start_new_page
@@ -825,17 +989,17 @@ module Asciidoctor
         [(whole_pages * full_page_height + partial_page_height), whole_pages, partial_page_height]
       end
 
-      def with_dry_run &block
-        total_height, = dry_run(&block)
+      def with_old_dry_run &block
+        total_height, = old_dry_run(&block)
         instance_exec total_height, &block
       end
 
       # Attempt to keep the objects generated in the block on the same page
       #
       # TODO: short-circuit nested usage
-      def keep_together &block
+      def old_keep_together &block
         available_space = cursor
-        total_height, = dry_run(&block)
+        total_height, = old_dry_run(&block)
         # NOTE: technically, if we're at the page top, we don't even need to do the
         # dry run, except several uses of this method rely on the calculated height
         if total_height > available_space && !at_page_top? && total_height <= effective_page_height
@@ -849,8 +1013,8 @@ module Asciidoctor
       # Attempt to keep the objects generated in the block on the same page
       # if the verdict parameter is true.
       #
-      def keep_together_if verdict, &block
-        verdict ? keep_together(&block) : yield
+      def old_keep_together_if verdict, &block
+        verdict ? old_keep_together(&block) : yield
       end
     end
   end

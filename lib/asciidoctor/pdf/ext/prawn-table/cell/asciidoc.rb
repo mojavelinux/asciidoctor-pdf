@@ -39,7 +39,7 @@ module Prawn
           padding_y = cell.padding_top + cell.padding_bottom
           max_height = @pdf.bounds.height - padding_y
           apply_font_properties do
-            @pdf.dry_run do
+            @pdf.old_dry_run do
               push_scratch parent_doc
               doc.catalog[:footnotes] = parent_doc.catalog[:footnotes]
               start_page = page
