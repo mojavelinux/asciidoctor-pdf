@@ -1019,7 +1019,6 @@ module Asciidoctor
         return convert_open node if node.option? 'collapsible'
         theme_margin :block, :top
         arrange_block node do |extent|
-          push_scratch node.document if scratch?
           add_dest_for_block node if node.id # Q: do we want to put anchor above top margin instead?
           theme_fill_and_stroke_block :example, extent, caption_node: node
           tare_block_content
@@ -1028,8 +1027,6 @@ module Asciidoctor
               traverse node
             end
           end
-        ensure
-          pop_scratch node.document if scratch?
         end
         theme_margin :block, :bottom
       end
