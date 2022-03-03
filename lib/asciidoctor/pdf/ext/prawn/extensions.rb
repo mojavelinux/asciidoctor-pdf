@@ -101,6 +101,8 @@ module Asciidoctor
         raise NewPageRequiredError
       end
 
+      DetectEmptyFirstPage = ::Module.new
+
       DetectEmptyFirstPageProc = proc do |original_callback, pdf|
         if pdf.state.pages[pdf.page_number - 2].empty?
           pdf.delete_page
@@ -895,13 +897,17 @@ module Asciidoctor
 
       def stop_if_first_page_empty pdf
         saved_callback = (pdf_state = pdf.state).on_page_create_callback
-        pdf_state.on_page_create_callback = DetectEmptyFirstPageProc.curry[saved_callback]
+        pdf_state.on_page_create_callback = DetectEmptyFirstPageProc.curry[saved_callback].extend DetectEmptyFirstPage
         yield
         false
       rescue NewPageRequiredError
         true
       ensure
         pdf_state.on_page_create_callback = saved_callback
+      end
+
+      def tare_block_content
+        page.tare_content_stream if DetectEmptyFirstPage === state.on_page_create_callback
       end
 
       def dry_run keep_together = false, start_from_top = nil, &block

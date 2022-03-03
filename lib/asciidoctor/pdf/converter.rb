@@ -1022,6 +1022,7 @@ module Asciidoctor
           push_scratch node.document if scratch?
           add_dest_for_block node if node.id # Q: do we want to put anchor above top margin instead?
           theme_fill_and_stroke_block :example, extent, caption_node: node
+          tare_block_content
           pad_box @theme.example_padding do
             theme_font :example do
               traverse node
