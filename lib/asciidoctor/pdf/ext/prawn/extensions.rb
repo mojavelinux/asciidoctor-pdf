@@ -876,8 +876,11 @@ module Asciidoctor
 
       def arrange_block node, &block
         start_cursor = cursor
-        #keep_together = (node.option? 'unbreakable') && !at_page_top?
-        keep_together = !at_page_top?
+        if ENV['CI']
+          keep_together = (node.option? 'unbreakable') && !at_page_top?
+        else
+          keep_together = !at_page_top?
+        end
         doc = node.document
         block_for_dry_run = proc do
           push_scratch doc if scratch?
