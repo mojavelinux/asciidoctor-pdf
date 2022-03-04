@@ -51,21 +51,21 @@ module Asciidoctor
           from.page == to.page
         end
 
-        def advanced?
-          current.page < to.page
-        end
+        #def advanced?
+        #  current.page < to.page
+        #end
 
-        def single_page_height
-          from.page == to.page ? from.cursor - to.cursor : nil
-        end
+        #def single_page_height
+        #  from.page == to.page ? from.cursor - to.cursor : nil
+        #end
 
-        def on_first_page? reference_page
-          reference_page == from.page
-        end
+        #def on_first_page? reference_page
+        #  reference_page == from.page
+        #end
 
-        def shift_to new_start_page, new_start_cursor
-          self.from = Position.new new_start_page, new_start_cursor
-        end
+        #def shift_to new_start_page, new_start_cursor
+        #  self.from = Position.new new_start_page, new_start_cursor
+        #end
       end
 
       ScratchExtent = ::Struct.new :from, :to do

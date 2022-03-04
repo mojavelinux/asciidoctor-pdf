@@ -3823,7 +3823,7 @@ module Asciidoctor
         unless b_width || bg_color
           if node_with_caption
             layout_caption node_with_caption, category: category
-            extent.shift_to page_number, cursor unless extent.on_first_page? page_number
+            #extent.shift_to page_number, cursor unless extent.on_first_page? page_number
           end
           return
         end
@@ -3844,7 +3844,7 @@ module Asciidoctor
         end
         if node_with_caption
           layout_caption node_with_caption, category: category
-          extent.shift_to page_number, cursor unless extent.on_first_page? page_number
+          #extent.shift_to page_number, cursor unless extent.on_first_page? page_number
         end
         float do
           extent.each_page do |_pagenum, first_page, last_page|
