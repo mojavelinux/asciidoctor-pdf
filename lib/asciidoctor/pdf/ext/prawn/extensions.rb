@@ -879,26 +879,16 @@ module Asciidoctor
         #keep_together = (node.option? 'unbreakable') && !at_page_top?
         keep_together = !at_page_top?
         doc = node.document
-        if scratch?
-          block_for_dry_run = block_for_real = proc do
-            push_scratch doc
-            instance_exec(&block)
-          ensure
-            pop_scratch doc
-          end
-        else
-          block_for_dry_run = proc do
-            push_scratch doc if scratch?
-            instance_exec(&block)
-          ensure
-            pop_scratch doc if scratch?
-          end
-          block_for_real = block
+        block_for_dry_run = proc do
+          push_scratch doc if scratch?
+          instance_exec(&block)
+        ensure
+          pop_scratch doc if scratch?
         end
         scratch_extent = dry_run keep_together, &block_for_dry_run
         # Q: can we encapsulate advance page logic?
         advance_page if (advanced = scratch_extent.from.page != 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
-        instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &block_for_real
+        instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &(scratch? ? block_for_dry_run : block)
       end
 
       def perform_on_single_page pdf
