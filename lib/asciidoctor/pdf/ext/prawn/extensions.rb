@@ -83,6 +83,10 @@ module Asciidoctor
           from.page == to.page
         end
 
+        def single_page_height
+          single_page? ? from.cursor - to.cursor : nil
+        end
+
         def try_to_fit_on_previous reference_cursor
           if single_page? && (height = from.cursor - to.cursor) <= reference_cursor
             from.cursor = reference_cursor
@@ -922,7 +926,7 @@ module Asciidoctor
 
       def dry_run keep_together = false, start_from_top = nil, &block
         (scratch_pdf = scratch).start_new_page
-        scratch_pdf.instance_variable_set :@y, y unless keep_together || start_from_top
+        scratch_pdf.move_cursor_to cursor unless keep_together || start_from_top
         scratch_start_page = scratch_pdf.page_number
         scratch_start_cursor = scratch_pdf.cursor
         scratch_bounds = scratch_pdf.bounds

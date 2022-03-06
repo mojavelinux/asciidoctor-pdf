@@ -685,6 +685,272 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
     end
   end
 
+  describe 'table cell', breakable: true do
+    describe 'at top' do
+      it 'should keep block on current page if it fits' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:table_cell_padding] = 5
+        block_content = ['block content'] * 3 * %(\n\n)
+        input = <<~EOS
+        |===
+        a|
+        before block
+
+        ====
+        #{block_content}
+        ====
+
+        after block
+        |===
+        EOS
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        (expect pdf.pages).to have_size 1
+        block_edges = lines.select {|it| it[:color] == '0000FF' }.each_with_object({ x: [], y: [] }) do |line, accum|
+          accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+          accum[:y] = (accum[:y] << line[:from][:y] << line[:to][:y]).sort.uniq.reverse
+        end
+        block_edges_expected = { x: [55.0, 557.0], y: [709.22, 613.88] }
+        (expect block_edges).to eql block_edges_expected
+        (expect (pdf.find_unique_text 'after block')[:y]).to be < block_edges_expected[:y][1]
+      end
+
+      it 'should draw border around block extent when table cell has large padding' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:table_cell_padding] = [30, 20]
+        block_content = ['block content'] * 3 * %(\n\n)
+        input = <<~EOS
+        |===
+        a|
+        before block
+
+        ====
+        #{block_content}
+
+        ---
+        ====
+
+        after block
+        |===
+        EOS
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        (expect pdf.pages).to have_size 1
+        block_edges = lines.select {|it| it[:color] == '0000FF' }.each_with_object({ x: [], y: [] }) do |line, accum|
+          accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+          accum[:y] = (accum[:y] << line[:from][:y] << line[:to][:y]).sort.uniq.reverse
+        end
+        block_edges_expected = { x: [70.0, 542.0], y: [684.22, 564.88] }
+        thematic_break = lines.find {|it| it[:color] == 'EEEEEE' }
+        (expect thematic_break[:to][:y]).to be > block_edges[:y][1]
+        (expect (pdf.find_unique_text 'after block')[:y]).to be < block_edges_expected[:y][1]
+        (expect block_edges).to eql block_edges_expected
+      end
+
+      it 'should truncate block taller than page within table cell' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:page_margin] = 36
+        pdf_theme[:table_cell_padding] = 5
+        block_content = ['block content'] * 25 * %(\n\n)
+        input = <<~EOS
+        |===
+        a|
+        table cell
+
+        ====
+        #{block_content}
+        ====
+
+        table cell
+        |===
+        EOS
+        (expect do
+          pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+          lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+          (expect pdf.pages).to have_size 1
+          fragment_line = lines.find {|it| it[:color] == 'FFFFFF' && it[:to][:y] == 41.0 }
+          (expect fragment_line).not_to be_nil
+          (expect fragment_line[:style]).to eql :dashed
+          block_edges = lines.select {|it| it[:color] == '0000FF' }.each_with_object({ x: [], y: [] }) do |line, accum|
+            accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+            accum[:y] = (accum[:y] << line[:from][:y] << line[:to][:y]).sort.uniq.reverse
+          end
+          block_edges_expected = { x: [41.0, 571.0], y: [723.22, 41.0] }
+          (expect block_edges).to eql block_edges_expected
+          (expect (pdf.find_text 'block content').size).to be < 25
+        end).to log_message severity: :ERROR, message: '~the table cell on page 1 has been truncated'
+      end
+
+      #it 'should scale font of nested block' do
+      #  #...
+      #end
+    end
+
+    describe 'below top' do
+      it 'should advance table cell that contains block shorter than page but does not fit on current page' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:page_margin] = 36
+        pdf_theme[:table_cell_padding] = 5
+        before_table_content = ['before table'] * 15 * %(\n\n)
+        block_content = ['block content'] * 15 * %(\n\n)
+        input = <<~EOS
+        #{before_table_content}
+
+        |===
+        a|
+        ====
+        #{block_content}
+
+        block content end
+        ====
+        |===
+
+        after table
+        EOS
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        (expect pdf.pages).to have_size 2
+        (expect (pdf.find_text 'before table')[-1][:page_number]).to be 1
+        (expect (pdf.find_unique_text 'after table')[:page_number]).to be 2
+        (expect (pdf.find_text 'block content')[0][:page_number]).to be 2
+        (expect (pdf.find_unique_text 'block content end')[:page_number]).to be 2
+        table_edges_expected = { x: [36.0, 576.0], y: [756.0, 278.0] }
+        block_edges_expected = { x: [41.0, 571.0], y: [751.0, 294.52] }
+        table_border_lines = lines.select {|it| it[:color] == 'DDDDDD' }
+        (expect table_border_lines.map {|it| it[:page_number] }.uniq).to eql [2]
+        table_edges = table_border_lines.each_with_object({ x: [], y: [] }) do |line, accum|
+          accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+          from_y = (line[:from][:y].ceil - (line[:from][:y].ceil % 2)).floor.to_f
+          to_y = (line[:to][:y].ceil - (line[:to][:y].ceil % 2)).floor.to_f
+          accum[:y] = (accum[:y] << from_y << to_y).sort.uniq.reverse
+        end
+        (expect table_edges).to eql table_edges_expected
+        block_border_lines = lines.select {|it| it[:color] == '0000FF' }
+        (expect block_border_lines.map {|it| it[:page_number] }.uniq).to eql [2]
+        block_edges = block_border_lines.each_with_object({ x: [], y: [] }) do |line, accum|
+          accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+          accum[:y] = (accum[:y] << line[:from][:y] << line[:to][:y]).sort.uniq.reverse
+        end
+        (expect block_edges).to eql block_edges_expected
+      end
+
+      it 'should advance table cell that contains unbreakable block that does not fit on current page' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:page_margin] = 36
+        pdf_theme[:table_cell_padding] = 5
+        before_table_content = ['before table'] * 15 * %(\n\n)
+        block_content = ['block content'] * 15 * %(\n\n)
+        input = <<~EOS
+        #{before_table_content}
+
+        |===
+        a|
+        before block
+
+        [%unbreakable]
+        ====
+        #{block_content}
+
+        block content end
+        ====
+        |===
+
+        after table
+        EOS
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        (expect pdf.pages).to have_size 2
+        (expect (pdf.find_text 'before table')[-1][:page_number]).to be 1
+        (expect (pdf.find_unique_text 'after table')[:page_number]).to be 2
+        (expect (pdf.find_unique_text 'before block')[:page_number]).to be 2
+        (expect (pdf.find_text 'block content')[0][:page_number]).to be 2
+        (expect (pdf.find_unique_text 'block content end')[:page_number]).to be 2
+        table_edges_expected = { x: [36.0, 576.0], y: [756.0, 250.0] }
+        block_edges_expected = { x: [41.0, 571.0], y: [723.22, 266.74] }
+        table_border_lines = lines.select {|it| it[:color] == 'DDDDDD' }
+        (expect table_border_lines.map {|it| it[:page_number] }.uniq).to eql [2]
+        table_edges = table_border_lines.each_with_object({ x: [], y: [] }) do |line, accum|
+          accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+          from_y = (line[:from][:y].ceil - (line[:from][:y].ceil % 2)).floor.to_f
+          to_y = (line[:to][:y].ceil - (line[:to][:y].ceil % 2)).floor.to_f
+          accum[:y] = (accum[:y] << from_y << to_y).sort.uniq.reverse
+        end
+        (expect table_edges).to eql table_edges_expected
+        block_border_lines = lines.select {|it| it[:color] == '0000FF' }
+        (expect block_border_lines.map {|it| it[:page_number] }.uniq).to eql [2]
+        block_edges = block_border_lines.each_with_object({ x: [], y: [] }) do |line, accum|
+          accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+          accum[:y] = (accum[:y] << line[:from][:y] << line[:to][:y]).sort.uniq.reverse
+        end
+        (expect block_edges).to eql block_edges_expected
+      end
+
+      it 'should advance table cell and truncate child block taller than page' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:page_margin] = 36
+        pdf_theme[:table_cell_padding] = 5
+        before_table_content = ['before table'] * 15 * %(\n\n)
+        block_content = ['block content'] * 25 * %(\n\n)
+        input = <<~EOS
+        #{before_table_content}
+
+        |===
+        a|
+        ====
+        #{block_content}
+
+        block content end
+        ====
+        |===
+
+        after table
+        EOS
+        (expect do
+          pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+          lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+          (expect pdf.pages).to have_size 3
+          (expect (pdf.find_text 'before table')[-1][:page_number]).to be 1
+          (expect (pdf.find_unique_text 'after table')[:page_number]).to be 3
+          (expect (pdf.find_text 'block content')[0][:page_number]).to be 2
+          (expect (pdf.find_unique_text 'block content end')).to be_nil
+          table_edges_expected = { x: [36.0, 576.0], y: [756.0, 36.0] }
+          block_edges_expected = { x: [41.0, 571.0], y: [751.0, 41.0] }
+          table_border_lines = lines.select {|it| it[:color] == 'DDDDDD' }
+          (expect table_border_lines.map {|it| it[:page_number] }.uniq).to eql [2]
+          table_edges = table_border_lines.each_with_object({ x: [], y: [] }) do |line, accum|
+            accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+            from_y = (line[:from][:y].ceil - (line[:from][:y].ceil % 2)).floor.to_f
+            to_y = (line[:to][:y].ceil - (line[:to][:y].ceil % 2)).floor.to_f
+            accum[:y] = (accum[:y] << from_y << to_y).sort.uniq.reverse
+          end
+          (expect table_edges).to eql table_edges_expected
+          block_border_lines = lines.select {|it| it[:color] == '0000FF' }
+          (expect block_border_lines.map {|it| it[:page_number] }.uniq).to eql [2]
+          block_edges = block_border_lines.each_with_object({ x: [], y: [] }) do |line, accum|
+            accum[:x] = (accum[:x] << line[:from][:x] << line[:to][:x]).sort.uniq
+            accum[:y] = (accum[:y] << line[:from][:y] << line[:to][:y]).sort.uniq.reverse
+          end
+          (expect block_edges).to eql block_edges_expected
+          fragment_line = lines.find {|it| it[:color] == 'FFFFFF' && it[:to][:y] == 41.0 }
+          (expect fragment_line).not_to be_nil
+          (expect fragment_line[:style]).to eql :dashed
+        end).to log_message severity: :ERROR, message: '~the table cell on page 2 has been truncated'
+      end
+    end
+  end
+
   describe 'anchor' do
     it 'should keep anchor with unbreakable block when advanced to new page' do
       before_block_content = ['before block'] * 15 * %(\n\n)

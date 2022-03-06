@@ -33,35 +33,32 @@ module Prawn
         # NOTE: automatic image sizing only works if cell has fixed width
         def dry_run
           cell = self
-          doc = content.document
-          parent_doc = doc.nested? ? doc.parent_document : doc
-          height = nil
+          parent_doc = (doc = content.document).nested? ? doc.parent_document : doc
           padding_y = cell.padding_top + cell.padding_bottom
-          max_height = @pdf.bounds.height - padding_y
+          max_height = @pdf.bounds.height
+          extent = nil
           apply_font_properties do
-            @pdf.old_dry_run do
+            extent = @pdf.dry_run true do
               push_scratch parent_doc
               doc.catalog[:footnotes] = parent_doc.catalog[:footnotes]
-              start_page = page
               if padding_y > 0
                 move_down padding_y
+              #elsif at_page_top?
               else
                 margin_box.instance_variable_set :@y, margin_box.absolute_top + 0.0001
               end
-              start_cursor = cursor
               # NOTE: we should be able to use cell.max_width, but returns 0 in some conditions (like when colspan > 1)
               indent cell.padding_left, bounds.width - cell.width + cell.padding_right do
                 # TODO: truncate margin bottom of last block
                 traverse cell.content
               end
-              # FIXME: prawn-table doesn't support cells that exceed the height of a single page
-              # NOTE: height does not include top/bottom padding, but must account for it when checking for overrun
-              height = (page == start_page ? start_cursor - cursor : max_height)
               pop_scratch parent_doc
               doc.catalog[:footnotes] = parent_doc.catalog[:footnotes]
             end
           end
-          height
+          # NOTE: prawn-table doesn't support cells that exceed the height of a single page
+          # NOTE: height does not include top/bottom padding, but must account for it when checking for overrun
+          (extent.single_page_height || max_height) - padding_y
         end
 
         def natural_content_width

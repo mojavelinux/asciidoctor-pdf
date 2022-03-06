@@ -3842,10 +3842,7 @@ module Asciidoctor
         else # let page background cut into block background
           b_shift, b_gap_color = (b_width ||= 0.5) * 0.5, @page_bg_color
         end
-        if node_with_caption
-          layout_caption node_with_caption, category: category
-          #extent.shift_to page_number, cursor unless extent.on_first_page? page_number
-        end
+        layout_caption node_with_caption, category: category if node_with_caption
         float do
           extent.each_page do |_pagenum, first_page, last_page|
             advance_page unless first_page
