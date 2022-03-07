@@ -787,9 +787,38 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         end).to log_message severity: :ERROR, message: '~the table cell on page 1 has been truncated'
       end
 
-      #it 'should scale font of nested block' do
-      #  #...
-      #end
+      it 'should scale font when computing height of block' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        pdf_theme[:example_padding] = [10, 10, 0, 10]
+        pdf_theme[:prose_margin_bottom] = 10
+        pdf_theme[:block_margin_bottom] = 10
+        pdf_theme[:table_font_size] = 5.25
+        block_content = ['block content'] * 10 * %(\n\n)
+        input = <<~EOS
+        |===
+        a|
+        ====
+        #{block_content}
+        ====
+
+        table cell
+        |===
+        EOS
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        border_bottom_y = lines
+          .select {|it| it[:color] == '0000FF' }
+          .reduce(Float::INFINITY) {|min, it| [min, it[:to][:y], it[:from][:y]].min }
+        last_content = (pdf.find_text 'block content')[-1]
+        last_content_bottom_y = last_content[:y]
+        (expect border_bottom_y).to be < last_content_bottom_y
+        padding_below = last_content_bottom_y - border_bottom_y
+        (expect padding_below).to ((be_within 2).of 10)
+        (expect (pdf.find_text 'block content')[0][:font_size]).to eql 5.25
+        (expect (pdf.find_text 'table cell')[0][:font_size]).to eql 5.25
+      end
     end
 
     describe 'below top' do

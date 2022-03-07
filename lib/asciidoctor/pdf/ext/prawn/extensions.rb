@@ -934,6 +934,7 @@ module Asciidoctor
         original_width = scratch_bounds.width
         scratch_bounds.instance_variable_set :@x, bounds.absolute_left
         scratch_bounds.instance_variable_set :@width, bounds.width
+        prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
         if keep_together
           restart = perform_on_single_page scratch_pdf do
             scratch_pdf.font(font_family, style: font_style, size: font_size) { scratch_pdf.instance_exec(&block) }
@@ -946,6 +947,7 @@ module Asciidoctor
           end
           start_from_top = (start_from_top || 0) + 1 if restart
         end
+        scratch_pdf.font_scale = prev_font_scale
         scratch_bounds.instance_variable_set :@x, original_x
         scratch_bounds.instance_variable_set :@width, original_width
         return dry_run false, start_from_top, &block if restart
