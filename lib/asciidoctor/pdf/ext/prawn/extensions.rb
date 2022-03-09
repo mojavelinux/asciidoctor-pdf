@@ -939,6 +939,8 @@ module Asciidoctor
           prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
           if keep_together
             restart = perform_on_single_page(scratch_pdf) { scratch_pdf.instance_exec(&block) }
+            # NOTE propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
+            raise NewPageRequiredError if restart && state.on_page_create_callback == InhibitNewPageProc
           elsif scratch_pdf.at_page_top?
             scratch_pdf.instance_exec(&block)
           else

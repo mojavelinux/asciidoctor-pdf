@@ -222,6 +222,95 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 409.39]
       end
 
+      it 'should restart dry run at current position once content exceeds height of first page' do
+        block_content = ['block content'] * 35 * %(\n\n)
+        calls = []
+        extensions = proc do
+          block :spy do
+            on_context :sidebar
+            process do |parent, reader, attrs|
+              block = create_block parent, :sidebar, reader.lines, attrs, content_model: :compound
+              block.instance_variable_set :@_calls, calls
+              block.extend (Module.new do
+                def content
+                  @_calls << (caller.join ?\n) if document.converter.scratch? # rubocop:disable RSpec/InstanceVariable
+                  super
+                end
+              end)
+            end
+          end
+        end
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, extensions: extensions, analyze: true
+        before block
+
+        [%unbreakable]
+        ====
+        #{block_content}
+
+        [spy]
+        ****
+        nested block content
+        ****
+        ====
+
+        after block
+        EOS
+
+        (expect pdf.pages).to have_size 2
+        # 1st call: to compute extent of sidebar for example block in scratch document
+        # 2nd call: to render sidebar in example block in scratch document
+        # 3nd call: to compute extent of sidebar in primary document
+        # 4th call: (not included) to render sidebar in primary document
+        (expect calls).to have_size 3
+        (expect (calls.join ?\n)).not_to include '`perform_on_single_page\''
+        (expect (pdf.find_unique_text 'nested block content')[:page_number]).to be 2
+      end
+
+      it 'should restart dry run at current position once content exceeds height of first page inside nested block' do
+        block_content = ['block content'] * 35 * %(\n\n)
+        calls = []
+        extensions = proc do
+          block :spy do
+            on_context :sidebar
+            process do |parent, reader, attrs|
+              block = create_block parent, :sidebar, reader.lines, attrs, content_model: :compound
+              block.instance_variable_set :@_calls, calls
+              block.extend (Module.new do
+                def content
+                  @_calls << (caller.join ?\n) if document.converter.scratch? # rubocop:disable RSpec/InstanceVariable
+                  super
+                end
+              end)
+            end
+          end
+        end
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, extensions: extensions, analyze: true
+        before block
+
+        [%unbreakable]
+        ====
+        before nested block
+
+        [%unbreakable]
+        ======
+        #{block_content}
+
+        [spy]
+        ****
+        deeply nested block content
+        ****
+        ======
+        ====
+
+        after block
+        EOS
+
+        (expect pdf.pages).to have_size 2
+        (expect calls).to have_size 7
+        (expect (calls.join ?\n)).not_to include '`perform_on_single_page\''
+        (expect (pdf.find_unique_text 'deeply nested block content')[:page_number]).to be 2
+      end
+
       it 'should advance block taller than page to next page if only caption fits on current page' do
         before_block_content = ['before block'] * 22 * %(\n\n)
         block_content = ['block content'] * 25 * %(\n\n)
