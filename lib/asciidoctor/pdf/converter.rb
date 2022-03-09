@@ -1126,7 +1126,6 @@ module Asciidoctor
       def convert_sidebar node
         theme_margin :block, :top
         arrange_block node do |extent|
-          push_scratch node.document if scratch?
           add_dest_for_block node if node.id
           theme_fill_and_stroke_block :sidebar, extent if extent
           pad_box @theme.sidebar_padding do
@@ -1138,8 +1137,6 @@ module Asciidoctor
               traverse node
             end
           end
-        ensure
-          pop_scratch node.document if scratch?
         end
         theme_margin :block, :bottom
       end
