@@ -1856,14 +1856,14 @@ module Asciidoctor
           adjusted_font_size = ((node.option? 'autofit') || (node.document.attr? 'autofit-option')) ? (compute_autofit_font_size source_chunks, :code) : nil
         end
 
-        top_margin = theme_margin :block, :top
+        theme_margin :block, :top
 
-        old_keep_together do |box_height = nil, advanced = nil|
-          add_dest_for_block node, y: (advanced ? nil : @y + top_margin) if node.id
-          caption_height = node.title? ? (layout_caption node, category: :code) : 0
-          theme_font :code do
-            old_theme_fill_and_stroke_block :code, (box_height - caption_height), background_color: bg_color_override, split_from_top: false if box_height
-            pad_box @theme.code_padding do
+        arrange_block node do |extent|
+          add_dest_for_block node if node.id
+          theme_fill_and_stroke_block :code, extent, background_color: bg_color_override, caption_node: node
+          tare_block_content
+          pad_box @theme.code_padding do
+            theme_font :code do
               ::Prawn::Text::Formatted::Box.extensions << wrap_ext if wrap_ext
               typeset_formatted_text source_chunks, (calc_line_metrics @theme.code_line_height || @theme.base_line_height),
                 color: (font_color_override || @theme.code_font_color || @font_color),
