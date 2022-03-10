@@ -881,26 +881,23 @@ module Asciidoctor
         shift_base = @theme.prose_margin_bottom
         shift_top = shift_base / 3.0
         shift_bottom = (shift_base * 2) / 3.0
-        old_keep_together do |box_height = nil, advanced = nil|
-          add_dest_for_block node, y: (advanced ? nil : @y + top_margin) if node.id
-          push_scratch doc if scratch?
-          old_theme_fill_and_stroke_block :admonition, box_height if box_height
+        arrange_block node do |extent|
+          add_dest_for_block node if node.id
+          theme_fill_and_stroke_block :admonition, extent
           pad_box [0, cpad[1], 0, lpad[3]] do
-            if box_height
-              label_height = [box_height, cursor].min
+            if extent
+              label_height = extent.single_page_height || cursor
               if (rule_color = @theme.admonition_column_rule_color) &&
                   (rule_width = @theme.admonition_column_rule_width || @theme.base_border_width) && rule_width > 0
+                rule_style = @theme.admonition_column_rule_style&.to_sym || :solid
                 float do
-                  rule_height = box_height
-                  while rule_height > 0
-                    rule_segment_height = [rule_height, cursor].min
-                    bounding_box [0, cursor], width: label_width + lpad[1], height: rule_segment_height do
-                      stroke_vertical_rule rule_color,
-                        at: bounds.right,
-                        line_style: (@theme.admonition_column_rule_style&.to_sym || :solid),
-                        line_width: rule_width
+                  extent.each_page do |_pagenum, first_page, last_page|
+                    advance_page unless first_page
+                    rule_segment_height = start_cursor = cursor
+                    rule_segment_height -= last_page.cursor if last_page
+                    bounding_box [0, start_cursor], width: label_width + lpad[1], height: rule_segment_height do
+                      stroke_vertical_rule rule_color, at: bounds.right, line_style: rule_style, line_width: rule_width
                     end
-                    advance_page if (rule_height -= rule_segment_height) > 0
                   end
                 end
               end
@@ -954,7 +951,6 @@ module Asciidoctor
                         end
                         embed_image image_obj, image_info, width: icon_width, position: label_align, vposition: label_valign
                       rescue
-                        # QUESTION: should we show the label in this case?
                         log :warn, %(could not embed admonition icon: #{icon_path}; #{$!.message})
                         icons = nil
                       end
@@ -1010,7 +1006,6 @@ module Asciidoctor
               move_up shift_bottom unless at_page_top?
             end
           end
-          pop_scratch doc if scratch?
         end
         theme_margin :block, :bottom
       end

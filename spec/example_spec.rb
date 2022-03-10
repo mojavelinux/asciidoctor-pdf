@@ -89,11 +89,10 @@ describe 'Asciidoctor::PDF::Converter - Example' do
   it 'should draw border around whole block when block contains nested unbreakable block', visual: true do
     to_file = to_pdf_file <<~EOS, 'example-with-nested-block-page-split.pdf'
     .Title
-    [%unbreakable]
     ====
     #{(['content'] * 25).join %(\n\n)}
 
-    [NOTE]
+    [NOTE%unbreakable]
     ======
     This block does not fit on a single page.
 

@@ -51,12 +51,12 @@ module Asciidoctor
           from.page == to.page
         end
 
+        def single_page_height
+          from.page == to.page ? from.cursor - to.cursor : nil
+        end
+
         #def advanced?
         #  current.page < to.page
-        #end
-
-        #def single_page_height
-        #  from.page == to.page ? from.cursor - to.cursor : nil
         #end
 
         #def on_first_page? reference_page
