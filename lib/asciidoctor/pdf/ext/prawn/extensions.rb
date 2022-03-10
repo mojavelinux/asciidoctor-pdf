@@ -949,6 +949,7 @@ module Asciidoctor
             restart = stop_if_first_page_empty(scratch_pdf) { scratch_pdf.instance_exec(&block) }
             start_from_top = (start_from_top || 0) + 1 if restart
           end
+        ensure
           scratch_pdf.font_scale = prev_font_scale
         end
         scratch_bounds.instance_variable_set :@x, original_x
