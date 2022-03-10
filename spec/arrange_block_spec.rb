@@ -15,7 +15,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
     }
   end
 
-  it 'should paint background over extent of empty block' do
+  it 'should paint background across extent of empty block' do
     pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
     before block
 
@@ -56,7 +56,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 674.44]
       end
 
-      it 'should split block taller than page across pages starting from page top' do
+      it 'should split block taller than page across pages, starting from page top' do
         block_content = ['block content'] * 35 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         [%unbreakable]
@@ -78,7 +78,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 437.17]
       end
 
-      it 'should split block taller than several pages across pages starting from page top' do
+      it 'should split block taller than several pages across pages, starting from page top' do
         block_content = ['block content'] * 50 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         [%unbreakable]
@@ -197,7 +197,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 708.018], bottom_right: [562.0, 279.318]
       end
 
-      it 'should split block taller than page across pages starting from current position' do
+      it 'should split block taller than page across pages, starting from current position' do
         block_content = ['block content'] * 35 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         before block
@@ -449,7 +449,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 674.44]
       end
 
-      it 'should split block taller than page across pages starting from page top' do
+      it 'should split block taller than page across pages, starting from page top' do
         block_content = ['block content'] * 35 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         ====
@@ -470,7 +470,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 437.17]
       end
 
-      it 'should split block taller than several pages starting from page top' do
+      it 'should split block taller than several pages, starting from page top' do
         block_content = ['block content'] * 50 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         ====
@@ -662,7 +662,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p3_gs).to have_background color: 'EEEEEE', top_left: [50.0, 742.0], bottom_right: [562.0, 548.29]
       end
 
-      it 'should split block shorter than page across pages starting from current position if it does not fit on current page' do
+      it 'should split block shorter than page across pages, starting from current position if it does not fit on current page' do
         before_block_content = ['before block'] * 15 * %(\n\n)
         block_content = ['block content'] * 15 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
@@ -684,7 +684,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 576.07]
       end
 
-      it 'should split block taller than page across pages starting from current position' do
+      it 'should split block taller than page across pages, starting from current position' do
         before_block_content = ['before block'] * 15 * %(\n\n)
         block_content = ['block content'] * 35 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
@@ -1125,7 +1125,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
   end
 
   describe 'anchor' do
-    it 'should keep anchor with unbreakable block when advanced to new page' do
+    it 'should keep anchor with unbreakable block that is advanced to new page' do
       before_block_content = ['before block'] * 15 * %(\n\n)
       block_content = ['block content'] * 15 * %(\n\n)
       pdf = to_pdf <<~EOS, pdf_theme: pdf_theme
@@ -1146,7 +1146,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
       (expect dest[:y].to_f).to eql 742.0
     end
 
-    it 'should keep anchor with breakable block when advanced to next page' do
+    it 'should keep anchor with breakable block that is advanced to next page' do
       before_block_content = ['before block'] * 24 * %(\n\n)
       block_content = ['block content'] * 15 * %(\n\n)
       pdf = to_pdf <<~EOS, pdf_theme: pdf_theme
