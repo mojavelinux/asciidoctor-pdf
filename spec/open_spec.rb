@@ -3,6 +3,23 @@
 require_relative 'spec_helper'
 
 describe 'Asciidoctor::PDF::Converter - Open' do
+  it 'should be breakable by default' do
+    with_content_spacer 10, 720 do |spacer_path|
+      pdf = to_pdf <<~EOS, analyze: true
+      image::#{spacer_path}[]
+
+      --
+      first page
+
+      second page
+      --
+      EOS
+      (expect pdf.pages).to have_size 2
+      (expect (pdf.find_unique_text 'first page')[:page_number]).to be 1
+      (expect (pdf.find_unique_text 'second page')[:page_number]).to be 2
+    end
+  end
+
   it 'should keep block together when it has the unbreakable option', visual: true do
     to_file = to_pdf_file <<~EOS, 'open-unbreakable-option-fit.pdf'
     Make it rain.footnote:[money]

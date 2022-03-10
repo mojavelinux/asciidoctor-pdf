@@ -1033,13 +1033,11 @@ module Asciidoctor
 
       def convert_open node
         return convert_abstract node if node.style == 'abstract'
-        doc = node.document
-        old_keep_together_if node.option? 'unbreakable' do
-          push_scratch doc if scratch?
+        arrange_block node do |extent|
           add_dest_for_block node if node.id
           node.context == :example ? (layout_caption %(\u25bc #{node.title})) : (layout_caption node, labeled: false) if node.title?
+          tare_block_content
           traverse node
-          pop_scratch doc if scratch?
         end
       end
 
