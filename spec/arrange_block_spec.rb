@@ -370,6 +370,61 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         p3_gs = (pdf.extract_graphic_states pages[2][:raw_content])[0]
         (expect p3_gs).to have_background color: 'EEEEEE', top_left: [50.0, 742.0], bottom_right: [562.0, 687.19]
       end
+
+      it 'should preserve indentation across pages in scratch document' do
+        x = Set.new
+        extensions = proc do
+          block :spy do
+            on_context :paragraph
+            process do |parent, reader, attrs|
+              para = create_paragraph parent, reader.lines, attrs
+              para.instance_variable_set :@_x, x
+              para.extend (Module.new do
+                def content
+                  @_x << @document.converter.bounds.absolute_left
+                  super
+                end
+              end)
+            end
+          end
+        end
+        pdf_theme.delete :page_margin
+        pdf_theme.delete :page_size
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        input = <<~EOS
+        before block
+
+        [%unbreakable]
+        ====
+        example1
+
+        [%unbreakable]
+        ======
+        #{['example2'] * 25 * %(\n\n)}
+
+        [%unbreakable]
+        ========
+        [spy]
+        #{['example3'] * 405 * ' '}
+        ========
+        ======
+        ====
+        EOS
+        pdf = to_pdf input, pdf_theme: pdf_theme, extensions: extensions, analyze: true
+        p3_lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines.select {|it| it[:page_number] == 3 }
+        (expect pdf.pages).to have_size 3
+        (expect x).to have_size 1
+        last_text_y = (pdf.find_text %r/example3/)[-1][:y]
+        last_lines_y = p3_lines
+          .select {|it| it[:color] == '0000FF' && it[:from][:y] < 805 && it[:from][:y] == it[:to][:y] }
+          .map {|it| it[:from][:y] }
+        (expect last_lines_y).to have_size 3
+        (expect last_lines_y[2] - last_lines_y[1]).to eql 12.0
+        (expect last_lines_y[1] - last_lines_y[0]).to eql 12.0
+        (expect last_lines_y[0]).to be < (last_text_y - 1)
+      end
     end
   end
 

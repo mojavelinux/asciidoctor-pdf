@@ -933,6 +933,8 @@ module Asciidoctor
         original_x = scratch_bounds.absolute_left
         original_width = scratch_bounds.width
         scratch_bounds.instance_variable_set :@x, bounds.absolute_left
+        scratch_bounds.instance_variable_set :@total_left_padding, bounds.total_left_padding
+        scratch_bounds.instance_variable_set :@total_right_padding, bounds.total_right_padding
         scratch_bounds.instance_variable_set :@width, bounds.width
         restart = nil
         scratch_pdf.font font_family, size: font_size, style: font_style do
@@ -950,6 +952,8 @@ module Asciidoctor
           scratch_pdf.font_scale = prev_font_scale
         end
         scratch_bounds.instance_variable_set :@x, original_x
+        scratch_bounds.instance_variable_set :@total_left_padding, 0
+        scratch_bounds.instance_variable_set :@total_right_padding, 0
         scratch_bounds.instance_variable_set :@width, original_width
         return dry_run false, start_from_top, &block if restart
         scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
