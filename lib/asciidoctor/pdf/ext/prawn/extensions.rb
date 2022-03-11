@@ -926,16 +926,14 @@ module Asciidoctor
 
       def dry_run keep_together = false, start_from_top = nil, &block
         (scratch_pdf = scratch).start_new_page
-        scratch_pdf.move_cursor_to cursor unless keep_together || start_from_top
-        scratch_start_page = scratch_pdf.page_number
-        scratch_start_cursor = scratch_pdf.cursor
         scratch_bounds = scratch_pdf.bounds
-        original_x = scratch_bounds.absolute_left
-        original_width = scratch_bounds.width
-        scratch_bounds.instance_variable_set :@x, bounds.absolute_left
-        scratch_bounds.instance_variable_set :@total_left_padding, bounds.total_left_padding
-        scratch_bounds.instance_variable_set :@total_right_padding, bounds.total_right_padding
-        scratch_bounds.instance_variable_set :@width, bounds.width
+        restore_bounds = [:@total_left_padding, :@total_right_padding, :@width, :@x].each_with_object({}) do |name, accum|
+          accum[name] = scratch_bounds.instance_variable_get name
+          scratch_bounds.instance_variable_set name, (bounds.instance_variable_get name)
+        end
+        scratch_pdf.move_cursor_to cursor unless keep_together || start_from_top
+        scratch_start_cursor = scratch_pdf.cursor
+        scratch_start_page = scratch_pdf.page_number
         restart = nil
         scratch_pdf.font font_family, size: font_size, style: font_style do
           prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
@@ -953,10 +951,6 @@ module Asciidoctor
         ensure
           scratch_pdf.font_scale = prev_font_scale
         end
-        scratch_bounds.instance_variable_set :@x, original_x
-        scratch_bounds.instance_variable_set :@total_left_padding, 0
-        scratch_bounds.instance_variable_set :@total_right_padding, 0
-        scratch_bounds.instance_variable_set :@width, original_width
         return dry_run false, start_from_top, &block if restart
         scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
         if start_from_top
@@ -971,6 +965,8 @@ module Asciidoctor
         end
         # Q: should start page be virtual or should it be actual and pass the offset on which we started
         ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_end_page, scratch_end_cursor
+      ensure
+        restore_bounds.each {|name, val| scratch_bounds.instance_variable_set name, val }
       end
 
       def simple_dry_run start_from_top = false, &block
