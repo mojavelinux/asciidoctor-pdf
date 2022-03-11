@@ -107,12 +107,12 @@ module Asciidoctor
 
       DetectEmptyFirstPage = ::Module.new
 
-      DetectEmptyFirstPageProc = proc do |original_callback, pdf|
+      DetectEmptyFirstPageProc = proc do |delegate, pdf|
         if pdf.state.pages[pdf.page_number - 2].empty?
           pdf.delete_page
           raise NewPageRequiredError
         end
-        original_callback[pdf] if (pdf.state.on_page_create_callback = original_callback)
+        delegate.call pdf if (pdf.state.on_page_create_callback = delegate)
       end
 
       # Core
