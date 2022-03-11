@@ -266,7 +266,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect (pdf.find_unique_text 'nested block content')[:page_number]).to be 2
       end
 
-      it 'should restart dry run at current position once content exceeds height of first page inside nested block' do
+      it 'should restart dry run at current position once unbreakable block exceeds height of first page inside nested block' do
         block_content = ['block content'] * 35 * %(\n\n)
         calls = []
         extensions = proc do
@@ -292,6 +292,48 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         before nested block
 
         [%unbreakable]
+        ======
+        #{block_content}
+
+        [spy]
+        ****
+        deeply nested block content
+        ****
+        ======
+        ====
+
+        after block
+        EOS
+
+        (expect pdf.pages).to have_size 2
+        (expect calls).to have_size 7
+        (expect (calls.join ?\n)).not_to include '`perform_on_single_page\''
+        (expect (pdf.find_unique_text 'deeply nested block content')[:page_number]).to be 2
+      end
+
+      it 'should restart dry run at current position once breakable content exceeds height of first page inside nested block' do
+        block_content = ['block content'] * 30 * %(\n\n)
+        calls = []
+        extensions = proc do
+          block :spy do
+            on_context :sidebar
+            process do |parent, reader, attrs|
+              block = create_block parent, :sidebar, reader.lines, attrs, content_model: :compound
+              block.instance_variable_set :@_calls, calls
+              block.extend (Module.new do
+                def content
+                  @_calls << (caller.join ?\n) if document.converter.scratch? # rubocop:disable RSpec/InstanceVariable
+                  super
+                end
+              end)
+            end
+          end
+        end
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, extensions: extensions, analyze: true
+        before block
+
+        [%unbreakable]
+        ====
         ======
         #{block_content}
 
