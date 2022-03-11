@@ -196,21 +196,23 @@ describe 'Asciidoctor::PDF::Converter - Quote' do
   end
 
   it 'should advance to next page if block is split and caption does not fit' do
-    quote = %(Power concedes nothing without a demand. +\nIt never did and it never will.)
+    quote = ['Power concedes nothing without a demand.', 'It never did and it never will.'].join %( +\n)
+    with_content_spacer 10, 705 do |spacer_path|
+      input = <<~EOS
+      before
 
-    pdf = to_pdf <<~EOS, pdf_theme: { thematic_break_margin_top: 700 }, analyze: true
-    before
+      image::#{spacer_path}[]
 
-    '''
+      .Sage advice by Frederick Douglass
+      ____
+      #{([quote] * 18).join %(\n\n)}
+      ____
+      EOS
 
-    .Sage advice by Frederick Douglass
-    ____
-    #{([quote] * 18).join %(\n\n)}
-    ____
-    EOS
-
-    advice_text = pdf.find_unique_text 'Sage advice by Frederick Douglass'
-    (expect advice_text[:page_number]).to be 2
-    (expect advice_text[:y]).to be > 795
+      pdf = to_pdf input, analyze: true
+      advice_text = pdf.find_unique_text 'Sage advice by Frederick Douglass'
+      (expect advice_text[:page_number]).to be 2
+      (expect advice_text[:y] + advice_text[:font_size]).to ((be_within 1).of 805)
+    end
   end
 end

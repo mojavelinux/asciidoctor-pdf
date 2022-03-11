@@ -883,7 +883,7 @@ module Asciidoctor
         shift_bottom = (shift_base * 2) / 3.0
         arrange_block node do |extent|
           add_dest_for_block node if node.id
-          theme_fill_and_stroke_block :admonition, extent
+          theme_fill_and_stroke_block :admonition, extent if extent
           pad_box [0, cpad[1], 0, lpad[3]] do
             if extent
               label_height = extent.single_page_height || cursor
@@ -1037,20 +1037,30 @@ module Asciidoctor
       end
 
       def convert_quote_or_verse node
-        add_dest_for_block node if node.id
         theme_margin :block, :top
         category = node.context == :quote ? :blockquote : :verse
         # NOTE: b_width and b_left_width are mutually exclusive
-        unless (b_left_width = @theme[%(#{category}_border_left_width)]) && b_left_width > 0
+        if (b_left_width = @theme[%(#{category}_border_left_width)]) && b_left_width > 0
+          b_color = @theme[%(#{category}_border_color)]
+        else
           b_left_width = nil
           b_width = nil if (b_width = @theme[%(#{category}_border_width)]) == 0
         end
-        old_keep_together do |box_height = nil|
-          push_scratch node.document if scratch?
-          old_theme_fill_and_stroke_block category, box_height, border_width: b_width if box_height && (b_width || @theme[%(#{category}_background_color)])
-          start_page_number = page_number
-          start_cursor = cursor
-          caption_height = node.title? ? (layout_caption node, category: category, labeled: false) : 0
+        arrange_block node do |extent|
+          add_dest_for_block node if node.id
+          theme_fill_and_stroke_block category, extent, border_width: b_width, caption_node: node
+          if extent && b_left_width
+            float do
+              extent.each_page do |_pagenum, first_page, last_page|
+                advance_page unless first_page
+                b_height = start_cursor = cursor
+                b_height -= last_page.cursor if last_page
+                bounding_box [0, start_cursor], width: bounds.width, height: b_height do
+                  stroke_vertical_rule b_color, line_width: b_left_width, at: b_left_width * 0.5
+                end
+              end
+            end
+          end
           pad_box @theme[%(#{category}_padding)] do
             theme_font category do
               if category == :blockquote
@@ -1074,41 +1084,6 @@ module Asciidoctor
               end
             end
           end
-          # FIXME: we want to draw graphics before content, but box_height is not reliable when spanning pages
-          # FIXME: border extends to bottom of content area if block terminates at bottom of page
-          if box_height && b_left_width
-            b_color = @theme[%(#{category}_border_color)]
-            page_spread = page_number - start_page_number + 1
-            end_cursor = cursor
-            go_to_page start_page_number
-            move_cursor_to start_cursor
-            page_spread.times do |i|
-              if i == 0
-                y_draw = cursor
-                b_height = page_spread > 1 ? y_draw : (y_draw - end_cursor)
-              else
-                bounds.move_past_bottom
-                y_draw = cursor
-                b_height = page_spread - 1 == i ? (y_draw - end_cursor) : y_draw
-              end
-              # NOTE: skip past caption if present
-              if caption_height > 0
-                if caption_height > cursor
-                  caption_height -= cursor
-                  next # keep skipping, caption is on next page
-                end
-                y_draw -= caption_height
-                b_height -= caption_height
-                caption_height = 0
-              end
-              # NOTE: b_height is 0 when block terminates at bottom of page
-              next if b_height == 0
-              bounding_box [0, y_draw], width: bounds.width, height: b_height do
-                stroke_vertical_rule b_color, line_width: b_left_width, at: b_left_width * 0.5
-              end
-            end
-          end
-          pop_scratch node.document if scratch?
         end
         theme_margin :block, :bottom
       end
