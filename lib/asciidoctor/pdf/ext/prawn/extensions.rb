@@ -920,8 +920,24 @@ module Asciidoctor
         pdf_state.on_page_create_callback = saved_callback
       end
 
-      def tare_block_content
-        page.tare_content_stream if DetectEmptyFirstPage === state.on_page_create_callback
+      def tare_first_page_content_stream
+        if DetectEmptyFirstPage === (delegate = state.on_page_create_callback)
+          page_idx = page_number - 1
+          on_page_create_called = nil
+          state.on_page_create_callback = proc do |pdf|
+            on_page_create_called = true
+            pdf.state.pages[page_idx].tare_content_stream
+            delegate.call pdf
+          end
+          begin
+            yield
+          ensure
+            page.tare_content_stream unless on_page_create_called
+            state.on_page_create_callback = delegate
+          end
+        else
+          yield
+        end
       end
 
       def dry_run keep_together = false, start_from_top = nil, &block

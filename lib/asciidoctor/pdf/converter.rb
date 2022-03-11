@@ -1015,8 +1015,9 @@ module Asciidoctor
         theme_margin :block, :top
         arrange_block node do |extent|
           add_dest_for_block node if node.id # Q: do we want to put anchor above top margin instead?
-          theme_fill_and_stroke_block :example, extent, caption_node: node
-          tare_block_content
+          tare_first_page_content_stream do
+            theme_fill_and_stroke_block :example, extent, caption_node: node
+          end
           pad_box @theme.example_padding do
             theme_font :example do
               traverse node
@@ -1030,8 +1031,9 @@ module Asciidoctor
         return convert_abstract node if node.style == 'abstract'
         arrange_block node do |extent|
           add_dest_for_block node if node.id
-          node.context == :example ? (layout_caption %(\u25bc #{node.title})) : (layout_caption node, labeled: false) if node.title?
-          tare_block_content
+          tare_first_page_content_stream do
+            node.context == :example ? (layout_caption %(\u25bc #{node.title})) : (layout_caption node, labeled: false) if node.title?
+          end
           traverse node
         end
       end
@@ -1048,7 +1050,9 @@ module Asciidoctor
         end
         arrange_block node do |extent|
           add_dest_for_block node if node.id
-          theme_fill_and_stroke_block category, extent, border_width: b_width, caption_node: node
+          tare_first_page_content_stream do
+            theme_fill_and_stroke_block category, extent, border_width: b_width, caption_node: node
+          end
           if extent && b_left_width
             float do
               extent.each_page do |_pagenum, first_page, last_page|
@@ -1830,8 +1834,9 @@ module Asciidoctor
 
         arrange_block node do |extent|
           add_dest_for_block node if node.id
-          theme_fill_and_stroke_block :code, extent, background_color: bg_color_override, caption_node: node
-          tare_block_content
+          tare_first_page_content_stream do
+            theme_fill_and_stroke_block :code, extent, background_color: bg_color_override, caption_node: node
+          end
           pad_box @theme.code_padding do
             theme_font :code do
               ::Prawn::Text::Formatted::Box.extensions << wrap_ext if wrap_ext
@@ -3786,10 +3791,7 @@ module Asciidoctor
           bg_color = nil
         end
         unless b_width || bg_color
-          if node_with_caption
-            layout_caption node_with_caption, category: category
-            #extent.shift_to page_number, cursor unless extent.on_first_page? page_number
-          end
+          layout_caption node_with_caption, category: category if node_with_caption
           return
         end
         if (b_color = @theme[%(#{category}_border_color)]) == 'transparent'

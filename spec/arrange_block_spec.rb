@@ -630,6 +630,33 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 723.009], bottom_right: [562.0, 294.309]
       end
 
+      it 'should advance block shorter than page to next page if caption fits but advances page' do
+        block_content = ['block content'] * 15 * %(\n\n)
+        pdf = with_content_spacer 10, 635 do |spacer_path|
+          input = <<~EOS
+          image::#{spacer_path}[]
+
+          before block
+
+          .block title
+          ====
+          #{block_content}
+          ====
+          EOS
+          to_pdf input, pdf_theme: pdf_theme, analyze: true
+        end
+
+        pages = pdf.pages
+        (expect pages).to have_size 2
+        (expect (pdf.find_unique_text 'before block')[:page_number]).to be 1
+        block_title = pdf.find_unique_text 'Example 1. block title'
+        (expect block_title[:page_number]).to be 2
+        (expect block_title[:y]).to be > 723.009
+        (expect (pdf.find_text 'block content')[0][:page_number]).to be 2
+        gs = (pdf.extract_graphic_states pages[1][:raw_content])[0]
+        (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 723.009], bottom_right: [562.0, 294.309]
+      end
+
       it 'should advance block shorter than page to next page if no content fits on current page' do
         before_block_content = ['before block'] * 24 * %(\n\n)
         block_content = ['block content'] * 15 * %(\n\n)
