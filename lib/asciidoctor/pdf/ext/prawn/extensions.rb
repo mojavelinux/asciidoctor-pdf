@@ -985,21 +985,6 @@ module Asciidoctor
         restore_bounds.each {|name, val| scratch_bounds.instance_variable_set name, val }
       end
 
-      def simple_dry_run start_from_top = false, &block
-        (scratch_pdf = scratch).start_new_page
-        scratch_pdf.instance_variable_set :@y, y unless start_from_top
-        scratch_bounds = scratch_pdf.bounds
-        original_x = scratch_bounds.absolute_left
-        original_width = scratch_bounds.width
-        scratch_bounds.instance_variable_set :@x, bounds.absolute_left
-        scratch_bounds.instance_variable_set :@width, bounds.width
-        result = nil
-        scratch_pdf.font(font_family, style: font_style, size: font_size) { result = scratch_pdf.instance_exec(&block) }
-        scratch_bounds.instance_variable_set :@x, original_x
-        scratch_bounds.instance_variable_set :@width, original_width
-        result
-      end
-
       def old_dry_run &block
         scratch_pdf = scratch
         # QUESTION: should we use scratch_pdf.advance_page instead?
@@ -1033,29 +1018,6 @@ module Asciidoctor
       def with_old_dry_run &block
         total_height, = old_dry_run(&block)
         instance_exec total_height, &block
-      end
-
-      # Attempt to keep the objects generated in the block on the same page
-      #
-      # TODO: short-circuit nested usage
-      def old_keep_together &block
-        available_space = cursor
-        total_height, = old_dry_run(&block)
-        # NOTE: technically, if we're at the page top, we don't even need to do the
-        # dry run, except several uses of this method rely on the calculated height
-        if total_height > available_space && !at_page_top? && total_height <= effective_page_height
-          advance_page
-          started_new_page = true
-        end
-
-        scratch? ? instance_exec(&block) : (instance_exec total_height, started_new_page, &block)
-      end
-
-      # Attempt to keep the objects generated in the block on the same page
-      # if the verdict parameter is true.
-      #
-      def old_keep_together_if verdict, &block
-        verdict ? old_keep_together(&block) : yield
       end
     end
   end

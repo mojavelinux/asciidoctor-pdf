@@ -3838,66 +3838,6 @@ module Asciidoctor
         nil
       end
 
-      def old_theme_fill_and_stroke_block category, block_height, opts = {}
-        if (b_width = (opts.key? :border_width) ? opts[:border_width] : @theme[%(#{category}_border_width)])
-          if ::Array === b_width
-            b_width = b_width[0]
-            b_radius = 0
-          end
-          b_width = nil unless b_width.to_f > 0
-        end
-        if (bg_color = opts[:background_color] || @theme[%(#{category}_background_color)]) == 'transparent'
-          bg_color = nil
-        end
-        unless b_width || bg_color
-          (node = opts[:caption_node]) && node.title? && (layout_caption node, category: category)
-          return
-        end
-        if (b_color = @theme[%(#{category}_border_color)]) == 'transparent'
-          b_color = @page_bg_color
-        end
-        b_radius ||= (@theme[%(#{category}_border_radius)] || 0) + (b_width || 0)
-        if b_width && b_color
-          if b_color == @page_bg_color # let page background cut into block background
-            b_gap_color, b_shift = @page_bg_color, (b_width * 0.5)
-          elsif (b_gap_color = bg_color) && b_gap_color != b_color
-            b_shift = 0
-          else # let page background cut into border
-            b_gap_color, b_shift = @page_bg_color, 0
-          end
-        else # let page background cut into block background
-          b_shift, b_gap_color = (b_width ||= 0.5) * 0.5, @page_bg_color
-        end
-        # FIXME: due to the calculation error logged in #789, we must advance page even when content is split across pages
-        advance_page if (opts.fetch :split_from_top, true) && block_height > cursor && !at_page_top?
-        caption_height = (node = opts[:caption_node]) && node.title? ? (layout_caption node, category: category) : 0
-        float do
-          remaining_height = block_height - caption_height
-          initial_page = true
-          while remaining_height > 0
-            advance_page unless initial_page
-            chunk_height = [(available_height = cursor), remaining_height].min
-            bounding_box [0, available_height], width: bounds.width, height: chunk_height do
-              theme_fill_and_stroke_bounds category, background_color: bg_color
-              # NOTE: b_width is always set; if no border is set, split indicator is cut into background
-              indent b_radius, b_radius do
-                # dashed line indicates continuation from previous page; swell line slightly to cover background
-                stroke_horizontal_rule b_gap_color, line_width: b_width * 1.2, line_style: :dashed, at: b_shift
-              end unless initial_page
-              if remaining_height > chunk_height
-                move_down chunk_height - b_shift
-                indent b_radius, b_radius do
-                  # dashed line indicates continuation from previous page; swell line slightly to cover background
-                  stroke_horizontal_rule b_gap_color, line_width: b_width * 1.2, line_style: :dashed
-                end
-              end
-            end
-            initial_page = false
-            remaining_height -= chunk_height
-          end
-        end
-      end
-
       # Insert a top margin equal to amount if cursor is not at the top of the
       # page. Start a new page instead if amount is greater than the remaining
       # space on the page.
