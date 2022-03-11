@@ -222,7 +222,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 409.39]
       end
 
-      it 'should restart dry run at current position once content exceeds height of first page' do
+      it 'should restart dry run at current position once content exceeds height of first page', breakable: true do
         block_content = ['block content'] * 35 * %(\n\n)
         calls = []
         extensions = proc do
@@ -266,7 +266,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect (pdf.find_unique_text 'nested block content')[:page_number]).to be 2
       end
 
-      it 'should restart dry run at current position once unbreakable block exceeds height of first page inside nested block' do
+      it 'should restart dry run at current position if unbreakable block exceeds height of first page inside nested block', breakable: true do
         block_content = ['block content'] * 35 * %(\n\n)
         calls = []
         extensions = proc do
@@ -311,7 +311,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect (pdf.find_unique_text 'deeply nested block content')[:page_number]).to be 2
       end
 
-      it 'should restart dry run at current position once breakable content exceeds height of first page inside nested block' do
+      it 'should restart dry run at current position if breakable content exceeds height of first page inside nested block', breakable: true do
         block_content = ['block content'] * 30 * %(\n\n)
         calls = []
         extensions = proc do
