@@ -878,6 +878,14 @@ module Asciidoctor
       end
       alias is_scratch? scratch?
 
+      def with_dry_run &block
+        start_cursor = cursor
+        scratch_extent = dry_run &block
+        # Q: can we encapsulate advance page logic?
+        advance_page if (advanced = scratch_extent.from.page > 1)
+        instance_exec ((dry_run &block).compute_from page_number, start_cursor, advanced), &block
+      end
+
       def arrange_block node, &block
         start_cursor = cursor
         if ENV['CI']
@@ -894,7 +902,7 @@ module Asciidoctor
         end
         scratch_extent = dry_run keep_together, &block_for_dry_run
         # Q: can we encapsulate advance page logic?
-        advance_page if (advanced = scratch_extent.from.page != 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
+        advance_page if (advanced = scratch_extent.from.page > 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
         instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &(scratch? ? block_for_dry_run : block)
       end
 
@@ -940,7 +948,7 @@ module Asciidoctor
         end
       end
 
-      def dry_run keep_together = false, start_from_top = nil, &block
+      def dry_run keep_together = nil, start_from_top = nil, &block
         (scratch_pdf = scratch).start_new_page
         scratch_bounds = scratch_pdf.bounds
         restore_bounds = [:@total_left_padding, :@total_right_padding, :@width, :@x].each_with_object({}) do |name, accum|
@@ -1013,11 +1021,6 @@ module Asciidoctor
         scratch_bounds.instance_variable_set :@width, original_width
         whole_pages = scratch_pdf.page_number - start_page_number
         [(whole_pages * full_page_height + partial_page_height), whole_pages, partial_page_height]
-      end
-
-      def with_old_dry_run &block
-        total_height, = old_dry_run(&block)
-        instance_exec total_height, &block
       end
     end
   end

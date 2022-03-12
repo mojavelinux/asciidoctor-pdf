@@ -714,8 +714,8 @@ module Asciidoctor
       def layout_footnotes node
         return if (fns = (doc = node.document).footnotes - @rendered_footnotes).empty?
         theme_margin :footnotes, :top
-        with_old_dry_run do |box_height = nil|
-          if box_height && (delta = cursor - box_height) > 0
+        with_dry_run do |extent|
+          if (single_page_height = extent&.single_page_height) && (delta = cursor - single_page_height - 0.0001) > 0
             move_down delta
           end
           theme_font :footnotes do
@@ -731,7 +731,7 @@ module Asciidoctor
               end
               layout_prose %(<a id="_footnotedef_#{index}">#{DummyText}</a>[<a anchor="_footnoteref_#{index}">#{label}</a>] #{fn.text}), margin_bottom: item_spacing, hyphenate: true
             end
-            @rendered_footnotes += fns unless scratch?
+            @rendered_footnotes += fns if extent
           end
         end
         nil
