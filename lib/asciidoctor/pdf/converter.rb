@@ -3042,21 +3042,24 @@ module Asciidoctor
       end
 
       def allocate_toc doc, toc_num_levels, toc_start_y, use_title_page
-        toc_page_nums = page_number
-        toc_end = nil
-        old_dry_run do
-          toc_page_nums = layout_toc doc, toc_num_levels, toc_page_nums, toc_start_y
+        toc_start_page = page_number
+        toc_start_cursor = cursor
+        scratch_extent = dry_run do
+          layout_toc doc, toc_num_levels, toc_start_page, toc_start_y
           move_down @theme.block_margin_bottom unless use_title_page
-          toc_end = @y
         end
+        # Q: can we encapsulate advance page logic?
+        advance_page if (advanced = scratch_extent.from.page > 1)
+        extent = scratch_extent.compute_from toc_start_page, toc_start_cursor, advanced
         # NOTE: reserve pages for the toc; leaves cursor on page after last page in toc
         if use_title_page
-          toc_page_nums.each { start_new_page }
+          extent.each_page { start_new_page }
         else
-          (toc_page_nums.size - 1).times { start_new_page }
-          @y = toc_end
+          extent.each_page {|_, first_page| start_new_page unless first_page }
+          move_cursor_to extent.to.cursor
         end
-        @toc_extent = { page_nums: toc_page_nums, start_y: toc_start_y }
+        # FIXME: use Extent class instead
+        @toc_extent = { page_nums: extent.page_range, start_y: toc_start_y }
       end
 
       # NOTE: num_front_matter_pages not used during a dry run

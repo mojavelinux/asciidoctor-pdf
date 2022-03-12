@@ -55,17 +55,9 @@ module Asciidoctor
           single_page? ? from.cursor - to.cursor : nil
         end
 
-        #def advanced?
-        #  current.page < to.page
-        #end
-
-        #def on_first_page? reference_page
-        #  reference_page == from.page
-        #end
-
-        #def shift_to new_start_page, new_start_cursor
-        #  self.from = Position.new new_start_page, new_start_cursor
-        #end
+        def page_range
+          (from.page..to.page)
+        end
       end
 
       ScratchExtent = ::Struct.new :from, :to do
@@ -883,7 +875,7 @@ module Asciidoctor
         scratch_extent = dry_run &block
         # Q: can we encapsulate advance page logic?
         advance_page if (advanced = scratch_extent.from.page > 1)
-        instance_exec ((dry_run &block).compute_from page_number, start_cursor, advanced), &block
+        instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &block
       end
 
       def arrange_block node, &block
@@ -991,36 +983,6 @@ module Asciidoctor
         ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_end_page, scratch_end_cursor
       ensure
         restore_bounds.each {|name, val| scratch_bounds.instance_variable_set name, val }
-      end
-
-      def old_dry_run &block
-        scratch_pdf = scratch
-        # QUESTION: should we use scratch_pdf.advance_page instead?
-        scratch_pdf.start_new_page
-        start_page_number = scratch_pdf.page_number
-        start_y = scratch_pdf.y
-        scratch_bounds = scratch_pdf.bounds
-        original_x = scratch_bounds.absolute_left
-        original_width = scratch_bounds.width
-        scratch_bounds.instance_variable_set :@x, bounds.absolute_left
-        scratch_bounds.instance_variable_set :@total_left_padding, bounds.total_left_padding
-        scratch_bounds.instance_variable_set :@total_right_padding, bounds.total_right_padding
-        scratch_bounds.instance_variable_set :@width, bounds.width
-        prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
-        scratch_pdf.font font_family, style: font_style, size: font_size do
-          scratch_pdf.instance_exec(&block)
-        ensure
-          scratch_pdf.font_scale = prev_font_scale
-        end
-        # NOTE: don't count excess if cursor exceeds writable area (due to padding)
-        full_page_height = scratch_pdf.effective_page_height
-        partial_page_height = [full_page_height, start_y - scratch_pdf.y].min
-        scratch_bounds.instance_variable_set :@x, original_x
-        scratch_bounds.instance_variable_set :@total_left_padding, 0
-        scratch_bounds.instance_variable_set :@total_right_padding, 0
-        scratch_bounds.instance_variable_set :@width, original_width
-        whole_pages = scratch_pdf.page_number - start_page_number
-        [(whole_pages * full_page_height + partial_page_height), whole_pages, partial_page_height]
       end
     end
   end
