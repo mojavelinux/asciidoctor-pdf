@@ -169,7 +169,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 723.009], bottom_right: [562.0, 294.309]
       end
 
-      it 'should advance block shorter than page and with caption that wraps to next page to avoid breaking' do
+      it 'should advance block shorter than page and with multiline caption to next page to avoid breaking' do
         before_block_content = ['before block'] * 15 * %(\n\n)
         block_content = ['block content'] * 15 * %(\n\n)
         block_title = ['block title'] * 20 * ' '
@@ -628,6 +628,34 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect (pdf.extract_graphic_states pages[0][:raw_content])).to be_empty
         gs = (pdf.extract_graphic_states pages[1][:raw_content])[0]
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 723.009], bottom_right: [562.0, 294.309]
+      end
+
+      it 'should advance block shorter than page to next page if caption spills over page boundary' do
+        block_content = ['block content'] * 15 * %(\n\n)
+        block_title = ['block title'] * 15 * ' '
+        pdf = with_content_spacer 10, 635 do |spacer_path|
+          input = <<~EOS
+          image::#{spacer_path}[]
+
+          before block
+
+          .#{block_title}
+          ====
+          #{block_content}
+          ====
+          EOS
+          to_pdf input, pdf_theme: pdf_theme, analyze: true
+        end
+
+        pages = pdf.pages
+        (expect pages).to have_size 2
+        (expect (pdf.find_unique_text 'before block')[:page_number]).to be 1
+        block_title = pdf.find_unique_text %r/^Example 1. block title/
+        (expect block_title[:page_number]).to be 2
+        (expect block_title[:y]).to be > 708.318
+        (expect (pdf.find_text 'block content')[0][:page_number]).to be 2
+        gs = (pdf.extract_graphic_states pages[1][:raw_content])[0]
+        (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 708.018], bottom_right: [562.0, 279.318]
       end
 
       it 'should advance block shorter than page to next page if caption fits but advances page' do
