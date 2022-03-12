@@ -78,6 +78,53 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 437.17]
       end
 
+      it 'should split block with nested block taller than page across pages, starting from page top' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        block_content = ['nested block content'] * 35 * %(\n\n)
+        input = <<~EOS
+        [%unbreakable]
+        ====
+
+        block content
+
+        [%unbreakable]
+        ======
+        #{block_content}
+        ======
+
+        block content
+        ====
+
+        after block
+        EOS
+
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        pages = pdf.pages
+        (expect pages).to have_size 2
+        (expect (pdf.find_unique_text 'after block')[:page_number]).to be 2
+        (expect (pdf.find_text 'block content')[0][:page_number]).to be 1
+        (expect (pdf.find_text 'block content')[-1][:page_number]).to be 2
+        p1_border_cut_lines = lines
+          .select {|it| it[:page_number] == 1 && it[:color] == 'FFFFFF' && it[:style] == :dashed }
+          .sort_by {|it| it[:from][:x] }
+        (expect p1_border_cut_lines).to have_size 2
+        (expect p1_border_cut_lines[0][:from][:x]).to eql 50.5
+        (expect p1_border_cut_lines[1][:from][:x]).to eql 62.5
+        (expect p1_border_cut_lines[0][:from][:y]).to eql 50.0
+        (expect p1_border_cut_lines[0][:from][:y]).to eql p1_border_cut_lines[1][:from][:y]
+        p2_border_cut_lines = lines
+          .select {|it| it[:page_number] == 2 && it[:color] == 'FFFFFF' && it[:style] == :dashed }
+          .sort_by {|it| it[:from][:x] }
+        (expect p2_border_cut_lines).to have_size 2
+        (expect p2_border_cut_lines[0][:from][:x]).to eql 50.5
+        (expect p2_border_cut_lines[1][:from][:x]).to eql 62.5
+        (expect p2_border_cut_lines[0][:from][:y]).to eql 742.0
+        (expect p2_border_cut_lines[0][:from][:y]).to eql p2_border_cut_lines[1][:from][:y]
+      end
+
       it 'should split block taller than several pages across pages, starting from page top' do
         block_content = ['block content'] * 50 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
@@ -510,6 +557,51 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect p1_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 50.0]
         p2_gs = (pdf.extract_graphic_states pages[1][:raw_content])[0]
         (expect p2_gs).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 437.17]
+      end
+
+      it 'should split block with nested block taller than page across pages, starting from page top' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        block_content = ['nested block content'] * 35 * %(\n\n)
+        input = <<~EOS
+        ====
+
+        block content
+
+        ======
+        #{block_content}
+        ======
+
+        block content
+        ====
+
+        after block
+        EOS
+
+        pdf = to_pdf input, pdf_theme: pdf_theme, analyze: true
+        lines = (to_pdf input, pdf_theme: pdf_theme, analyze: :line).lines
+        pages = pdf.pages
+        (expect pages).to have_size 2
+        (expect (pdf.find_unique_text 'after block')[:page_number]).to be 2
+        (expect (pdf.find_text 'block content')[0][:page_number]).to be 1
+        (expect (pdf.find_text 'block content')[-1][:page_number]).to be 2
+        p1_border_cut_lines = lines
+          .select {|it| it[:page_number] == 1 && it[:color] == 'FFFFFF' && it[:style] == :dashed }
+          .sort_by {|it| it[:from][:x] }
+        (expect p1_border_cut_lines).to have_size 2
+        (expect p1_border_cut_lines[0][:from][:x]).to eql 50.5
+        (expect p1_border_cut_lines[1][:from][:x]).to eql 62.5
+        (expect p1_border_cut_lines[0][:from][:y]).to eql 50.0
+        (expect p1_border_cut_lines[0][:from][:y]).to eql p1_border_cut_lines[1][:from][:y]
+        p2_border_cut_lines = lines
+          .select {|it| it[:page_number] == 2 && it[:color] == 'FFFFFF' && it[:style] == :dashed }
+          .sort_by {|it| it[:from][:x] }
+        (expect p2_border_cut_lines).to have_size 2
+        (expect p2_border_cut_lines[0][:from][:x]).to eql 50.5
+        (expect p2_border_cut_lines[1][:from][:x]).to eql 62.5
+        (expect p2_border_cut_lines[0][:from][:y]).to eql 742.0
+        (expect p2_border_cut_lines[0][:from][:y]).to eql p2_border_cut_lines[1][:from][:y]
       end
 
       it 'should split block taller than several pages, starting from page top' do
