@@ -2942,23 +2942,23 @@ module Asciidoctor
         sect
       end
 
-      # Render the caption and return the height of the rendered content
+      # Render the caption in the current document. If the dry_run option is true, return the height.
       #
       # The subject argument can either be a String or an AbstractNode. If
       # subject is an AbstractNode, only call this method if the node has a
-      # title (i.e., subject.title? return true).
+      # title (i.e., subject.title? returns true).
       #--
       # TODO: allow margin to be zeroed
       def layout_caption subject, opts = {}
         if opts.delete :dry_run
-          height = nil
-          old_dry_run do
-            move_down 0.001 # HACK: force top margin to be applied
-            height = layout_caption subject, opts
-          end
+          height = (dry_run false, 0 do
+            # TODO: encapsulate this logic to force top margin to be applied
+            margin_box.instance_variable_set :@y, margin_box.absolute_top + 0.0001
+            layout_caption subject, opts
+          end).single_page_height
+          raise ::Prawn::Errors::CannotFit unless height
           return height
         end
-        mark = { cursor: cursor, page_number: page_number }
         if ::Asciidoctor::AbstractBlock === subject
           string = (opts.delete :labeled) == false ? subject.title : subject.captioned_title
         else
@@ -3022,23 +3022,18 @@ module Asciidoctor
               opts = opts.merge inherited
             end
             indent(*indent_by) do
-              layout_prose string, {
+              layout_prose string, ({
                 margin_top: margin[:top],
                 margin_bottom: margin[:bottom],
                 align: text_align,
                 normalize: false,
                 normalize_line_height: true,
                 hyphenate: true,
-              }.merge(opts)
+              }.merge opts)
             end
           end
         end
-        # NOTE: we assume we don't clear more than one page
-        if page_number > mark[:page_number]
-          mark[:cursor] + (bounds.top - cursor)
-        else
-          mark[:cursor] - cursor
-        end
+        nil
       end
 
       # Render the caption for a table and return the height of the rendered content

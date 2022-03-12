@@ -52,7 +52,7 @@ module Asciidoctor
         end
 
         def single_page_height
-          from.page == to.page ? from.cursor - to.cursor : nil
+          single_page? ? from.cursor - to.cursor : nil
         end
 
         #def advanced?
