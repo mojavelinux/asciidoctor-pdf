@@ -1120,6 +1120,97 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         end).to log_message severity: :ERROR, message: '~the table cell on page 1 has been truncated'
       end
 
+      it 'should not convert content in table cell that overruns first page when computing height of table cell' do
+        table_cell_content = ['table cell'] * 30 * %(\n\n)
+        calls = []
+        extensions = proc do
+          block :spy do
+            on_context :paragraph
+            process do |parent, reader, attrs|
+              block = create_paragraph parent, reader.lines, attrs
+              block.instance_variable_set :@_calls, calls
+              block.extend (Module.new do
+                def content
+                  @_calls << (caller.join ?\n) if document.converter.scratch? # rubocop:disable RSpec/InstanceVariable
+                  super
+                end
+              end)
+            end
+          end
+        end
+        input = <<~EOS
+        before table
+
+        |===
+        a|
+        #{table_cell_content}
+
+        [spy]
+        beyond of first page
+        |===
+        EOS
+        (expect do
+          pdf = to_pdf input, pdf_theme: pdf_theme, extensions: extensions, analyze: true
+          (expect pdf.pages).to have_size 2
+          (expect pdf.find_text 'beyond first page').to be_empty
+          (expect (pdf.find_text 'table cell')[0][:page_number]).to be 2
+          (expect (pdf.find_text 'table cell')[-1][:page_number]).to be 2
+          (expect calls).to be_empty
+        end).to log_message severity: :ERROR, message: '~the table cell on page 2 has been truncated'
+      end
+
+      it 'should not convert content in table cell that overruns first page when computing height of table cell in scratch document' do
+        pdf_theme[:example_border_width] = 0.5
+        pdf_theme[:example_border_color] = '0000ff'
+        pdf_theme[:example_background_color] = 'ffffff'
+        table_cell_content = ['table cell'] * 30 * %(\n\n)
+        calls = []
+        extensions = proc do
+          block :spy do
+            on_context :paragraph
+            process do |parent, reader, attrs|
+              block = create_paragraph parent, reader.lines, attrs
+              block.instance_variable_set :@_calls, calls
+              block.extend (Module.new do
+                def content
+                  @_calls << (caller.join ?\n) if document.converter.scratch? # rubocop:disable RSpec/InstanceVariable
+                  super
+                end
+              end)
+            end
+          end
+        end
+        input = <<~EOS
+        ====
+        before table
+        |===
+        a|
+        #{table_cell_content}
+
+        [spy]
+        beyond of first page
+        |===
+        ====
+        EOS
+        (expect do
+          pdf = to_pdf input, pdf_theme: pdf_theme, extensions: extensions, analyze: true
+          lines = (to_pdf input, pdf_theme: pdf_theme, extensions: extensions, analyze: :line).lines
+          (expect pdf.pages).to have_size 2
+          (expect pdf.find_text 'beyond first page').to be_empty
+          (expect (pdf.find_text 'table cell')[0][:page_number]).to be 2
+          (expect (pdf.find_text 'table cell')[-1][:page_number]).to be 2
+          (expect calls).to be_empty
+          p2_bottom_border_lines = lines.select do |it|
+            it[:page_number] == 2 && it[:color] != '000000' && it[:from][:y] == 50.0 && it[:to][:y] == 50.0
+          end
+          (expect p2_bottom_border_lines).to have_size 2
+          block_bottom_border_range = [p2_bottom_border_lines[0][:from][:x], p2_bottom_border_lines[0][:to][:x]].sort
+          (expect block_bottom_border_range).to eql [50.0, 562.0]
+          table_bottom_border_range = [p2_bottom_border_lines[1][:from][:x], p2_bottom_border_lines[1][:to][:x]].sort
+          (expect table_bottom_border_range).to eql [62.0, 550.0]
+        end).to log_message severity: :ERROR, message: '~the table cell on page 2 has been truncated'
+      end
+
       it 'should scale font when computing height of block' do
         pdf_theme[:example_border_width] = 0.5
         pdf_theme[:example_border_color] = '0000ff'

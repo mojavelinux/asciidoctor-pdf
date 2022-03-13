@@ -937,7 +937,7 @@ module Asciidoctor
         end
       end
 
-      def dry_run keep_together: nil, start_from_top: nil, &block
+      def dry_run keep_together: nil, start_from_top: nil, single_page: nil, &block
         (scratch_pdf = scratch).start_new_page
         scratch_bounds = scratch_pdf.bounds
         restore_bounds = [:@total_left_padding, :@total_right_padding, :@width, :@x].each_with_object({}) do |name, accum|
@@ -955,6 +955,7 @@ module Asciidoctor
             if (restart = perform_on_single_page(scratch_pdf) { scratch_pdf.instance_exec(&block) })
               # NOTE propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
               raise NewPageRequiredError if inhibit_new_page
+              return ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0 if single_page
             end
           elsif scratch_start_at_top
             scratch_pdf.instance_exec(&block)

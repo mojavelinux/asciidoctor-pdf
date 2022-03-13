@@ -38,7 +38,7 @@ module Prawn
           max_height = @pdf.bounds.height
           extent = nil
           apply_font_properties do
-            extent = @pdf.dry_run keep_together: true do
+            extent = @pdf.dry_run keep_together: true, single_page: true do
               push_scratch parent_doc
               doc.catalog[:footnotes] = parent_doc.catalog[:footnotes]
               if padding_y > 0
@@ -72,7 +72,7 @@ module Prawn
           @natural_content_height ||= dry_run
         end
 
-        # FIXME: prawn-table doesn't support cells that exceed the height of a single page
+        # NOTE: prawn-table doesn't support cells that exceed the height of a single page
         def draw_content
           if (pdf = @pdf).scratch?
             pdf.move_down natural_content_height
@@ -83,10 +83,18 @@ module Prawn
           # NOTE: we've already reserved the space, so just let the box stretch to bottom of the content area
           pdf.bounds.instance_variable_set :@height, (pdf.y - pdf.page.margins[:bottom] - padding_bottom)
           if @valign != :top && (excess_y = spanned_content_height - natural_content_height) > 0
+            # QUESTION: could this cause a unexpected page overrun?
             pdf.move_down(@valign == :center ? (excess_y.fdiv 2) : excess_y)
           end
+          # # use perform_on_single_page to prevent content from being written on extra pages
+          # # the problem with this approach is that we don't know whether any content is written to next page
+          # apply_font_properties do
+          #   if (pdf.perform_on_single_page(pdf) { pdf.traverse content })
+          #     logger.error %(the table cell on page #{pdf.page_number} has been truncated; Asciidoctor PDF does not support table cell content that exceeds the height of a single page)
+          #   end
+          # end
           start_page = pdf.page_number
-          # TODO: apply horizontal alignment (right now must use alignment on content block)
+          # TODO: apply horizontal alignment; currently it is necessary to specify alignment on content blocks
           apply_font_properties { pdf.traverse content }
           if (extra_pages = pdf.page_number - start_page) > 0
             logger.error %(the table cell on page #{start_page} has been truncated; Asciidoctor PDF does not support table cell content that exceeds the height of a single page) unless extra_pages == 1 && pdf.page.empty?
@@ -99,7 +107,7 @@ module Prawn
 
         def apply_font_properties
           # NOTE: font_info holds font properties outside table; used as fallback values
-          # QUESTION: inherit table cell font properties?
+          # QUESTION: should we inherit table cell font properties?
           font_info = (pdf = @pdf).font_info
           font_color, font_family, font_size, font_style = @font_options.values_at :color, :family, :size, :style
           prev_font_color, pdf.font_color = pdf.font_color, font_color if font_color
