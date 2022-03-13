@@ -872,7 +872,7 @@ module Asciidoctor
 
       def with_dry_run &block
         start_cursor = cursor
-        scratch_extent = dry_run &block
+        scratch_extent = dry_run(&block)
         # Q: can we encapsulate advance page logic?
         advance_page if (advanced = scratch_extent.from.page > 1)
         instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &block
@@ -953,7 +953,7 @@ module Asciidoctor
           prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
           if keep_together || inhibit_new_page
             if (restart = perform_on_single_page(scratch_pdf) { scratch_pdf.instance_exec(&block) })
-              # NOTE propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
+              # NOTE: propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
               raise NewPageRequiredError if inhibit_new_page
               return ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0 if single_page
             end

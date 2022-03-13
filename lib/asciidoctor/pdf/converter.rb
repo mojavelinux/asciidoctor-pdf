@@ -836,7 +836,7 @@ module Asciidoctor
       end
 
       def convert_admonition node
-        top_margin = theme_margin :block, :top
+        theme_margin :block, :top
         type = node.attr 'name'
         label_align = @theme.admonition_label_align&.to_sym || :center
         # TODO: allow vertical_align to be a number

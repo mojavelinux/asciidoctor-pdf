@@ -470,7 +470,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
               para.instance_variable_set :@_x, x
               para.extend (Module.new do
                 def content
-                  @_x << @document.converter.bounds.absolute_left
+                  @_x << @document.converter.bounds.absolute_left # rubocop:disable RSpec/InstanceVariable
                   super
                 end
               end)
