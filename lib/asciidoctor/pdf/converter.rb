@@ -1029,7 +1029,7 @@ module Asciidoctor
 
       def convert_open node
         return convert_abstract node if node.style == 'abstract'
-        arrange_block node do |extent|
+        arrange_block node do
           add_dest_for_block node if node.id
           tare_first_page_content_stream do
             node.context == :example ? (layout_caption %(\u25bc #{node.title})) : (layout_caption node, labeled: false) if node.title?
