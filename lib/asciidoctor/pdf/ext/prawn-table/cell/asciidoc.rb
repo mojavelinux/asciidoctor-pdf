@@ -38,13 +38,14 @@ module Prawn
           max_height = @pdf.bounds.height
           extent = nil
           apply_font_properties do
-            extent = @pdf.dry_run true do
+            extent = @pdf.dry_run keep_together: true do
               push_scratch parent_doc
               doc.catalog[:footnotes] = parent_doc.catalog[:footnotes]
               if padding_y > 0
                 move_down padding_y
               #elsif at_page_top?
               else
+                # TODO: encapsulate this logic to force top margin to be applied
                 margin_box.instance_variable_set :@y, margin_box.absolute_top + 0.0001
               end
               # NOTE: we should be able to use cell.max_width, but returns 0 in some conditions (like when colspan > 1)

@@ -892,7 +892,7 @@ module Asciidoctor
         ensure
           pop_scratch doc if scratch?
         end
-        scratch_extent = dry_run keep_together, &block_for_dry_run
+        scratch_extent = dry_run keep_together: keep_together, &block_for_dry_run
         # Q: can we encapsulate advance page logic?
         advance_page if (advanced = scratch_extent.from.page > 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
         instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &(scratch? ? block_for_dry_run : block)
@@ -940,7 +940,7 @@ module Asciidoctor
         end
       end
 
-      def dry_run keep_together = nil, start_from_top = nil, &block
+      def dry_run keep_together: nil, start_from_top: nil, &block
         (scratch_pdf = scratch).start_new_page
         scratch_bounds = scratch_pdf.bounds
         restore_bounds = [:@total_left_padding, :@total_right_padding, :@width, :@x].each_with_object({}) do |name, accum|
@@ -967,7 +967,7 @@ module Asciidoctor
         ensure
           scratch_pdf.font_scale = prev_font_scale
         end
-        return dry_run false, start_from_top, &block if restart
+        return dry_run keep_together: false, start_from_top: start_from_top, &block if restart
         scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
         if start_from_top
           scratch_start_page += start_from_top

@@ -2951,7 +2951,7 @@ module Asciidoctor
       # TODO: allow margin to be zeroed
       def layout_caption subject, opts = {}
         if opts.delete :dry_run
-          height = (dry_run false, 0 do
+          height = (dry_run start_from_top: 0 do
             # TODO: encapsulate this logic to force top margin to be applied
             margin_box.instance_variable_set :@y, margin_box.absolute_top + 0.0001
             layout_caption subject, opts
