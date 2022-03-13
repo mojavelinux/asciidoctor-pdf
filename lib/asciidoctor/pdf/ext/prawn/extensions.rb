@@ -880,11 +880,8 @@ module Asciidoctor
 
       def arrange_block node, &block
         start_cursor = cursor
-        if ENV['CI']
-          keep_together = (node.option? 'unbreakable') && !at_page_top?
-        else
-          keep_together = !at_page_top?
-        end
+        #keep_together = (node.option? 'unbreakable') && !at_page_top?
+        keep_together = ENV['CI'] ? (node.option? 'unbreakable') && !at_page_top? : !at_page_top?
         doc = node.document
         block_for_dry_run = proc do
           push_scratch doc if scratch?
@@ -947,22 +944,22 @@ module Asciidoctor
           accum[name] = scratch_bounds.instance_variable_get name
           scratch_bounds.instance_variable_set name, (bounds.instance_variable_get name)
         end
-        scratch_pdf.move_cursor_to cursor unless keep_together || start_from_top
+        scratch_pdf.move_cursor_to cursor unless (scratch_start_at_top = keep_together || start_from_top || at_page_top?)
         scratch_start_cursor = scratch_pdf.cursor
         scratch_start_page = scratch_pdf.page_number
+        inhibit_new_page = state.on_page_create_callback == InhibitNewPageProc
         restart = nil
         scratch_pdf.font font_family, size: font_size, style: font_style do
           prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
-          inhibit_new_page = state.on_page_create_callback == InhibitNewPageProc
           if keep_together || inhibit_new_page
-            restart = perform_on_single_page(scratch_pdf) { scratch_pdf.instance_exec(&block) }
-            # NOTE propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
-            raise NewPageRequiredError if restart && inhibit_new_page
-          elsif scratch_pdf.at_page_top?
+            if (restart = perform_on_single_page(scratch_pdf) { scratch_pdf.instance_exec(&block) })
+              # NOTE propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
+              raise NewPageRequiredError if inhibit_new_page
+            end
+          elsif scratch_start_at_top
             scratch_pdf.instance_exec(&block)
-          else
-            restart = stop_if_first_page_empty(scratch_pdf) { scratch_pdf.instance_exec(&block) }
-            start_from_top = (start_from_top || 0) + 1 if restart
+          elsif (restart = stop_if_first_page_empty(scratch_pdf) { scratch_pdf.instance_exec(&block) })
+            start_from_top = (start_from_top || 0) + 1
           end
         ensure
           scratch_pdf.font_scale = prev_font_scale
