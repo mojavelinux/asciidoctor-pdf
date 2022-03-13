@@ -103,4 +103,52 @@ describe 'Asciidoctor::PDF::Converter - Open' do
     (expect (pdf.find_unique_text 'content')[:page_number]).to be 2
     (expect (pdf.find_unique_text 'Title')[:page_number]).to be 2
   end
+
+  it 'should not dry run block unless necessary' do
+    calls = []
+    extensions = proc do
+      block :spy do
+        on_context :paragraph
+        process do |parent, reader, attrs|
+          block = create_paragraph parent, reader.lines, attrs
+          block.instance_variable_set :@_calls, calls
+          block.extend (Module.new do
+            def content
+              @_calls << (caller.join ?\n) if document.converter.scratch? # rubocop:disable RSpec/InstanceVariable
+              super
+            end
+          end)
+        end
+      end
+    end
+
+    {
+      '' => false,
+      %(.title) => false,
+      %([#idname]) => false,
+      %([%unbreakable]) => false,
+      %(before\n) => false,
+      %(before\n\n.title) => true,
+      %(before\n\n[#idname]) => true,
+      %(before\n\n[%unbreakable]) => true,
+    }.each do |before_block, dry_run|
+      input = <<~EOS.lstrip
+      #{before_block}
+      --
+      #{['block content'] * 4 * %(\n\n)}
+
+      [spy]
+      block content
+      --
+      EOS
+      pdf = to_pdf input, extensions: extensions, analyze: true
+      (expect pdf.pages).to have_size 1
+      (expect (pdf.find_text 'block content')[0][:page_number]).to be 1
+      if dry_run
+        (expect calls).not_to be_empty
+      else
+        (expect calls).to be_empty
+      end
+    end
+  end
 end
