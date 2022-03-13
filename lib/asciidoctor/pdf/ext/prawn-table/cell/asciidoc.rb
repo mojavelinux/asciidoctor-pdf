@@ -89,7 +89,7 @@ module Prawn
           # # use perform_on_single_page to prevent content from being written on extra pages
           # # the problem with this approach is that we don't know whether any content is written to next page
           # apply_font_properties do
-          #   if (pdf.perform_on_single_page(pdf) { pdf.traverse content })
+          #   if (pdf.perform_on_single_page { pdf.traverse content })
           #     logger.error %(the table cell on page #{pdf.page_number} has been truncated; Asciidoctor PDF does not support table cell content that exceeds the height of a single page)
           #   end
           # end

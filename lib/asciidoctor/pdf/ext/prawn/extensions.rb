@@ -895,26 +895,25 @@ module Asciidoctor
         instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &(scratch? ? block_for_dry_run : block)
       end
 
-      def perform_on_single_page pdf
-        saved_callback = (pdf_state = pdf.state).on_page_create_callback
-        pdf_state.on_page_create_callback = InhibitNewPageProc
+      def perform_on_single_page
+        saved_callback, state.on_page_create_callback = state.on_page_create_callback, InhibitNewPageProc
         yield
         false
       rescue NewPageRequiredError
         true
       ensure
-        pdf_state.on_page_create_callback = saved_callback
+        state.on_page_create_callback = saved_callback
       end
 
-      def stop_if_first_page_empty pdf
-        saved_callback = (pdf_state = pdf.state).on_page_create_callback
-        pdf_state.on_page_create_callback = DetectEmptyFirstPageProc.curry[saved_callback].extend DetectEmptyFirstPage
+      def stop_if_first_page_empty
+        delegate = state.on_page_create_callback
+        state.on_page_create_callback = DetectEmptyFirstPageProc.curry[delegate].extend DetectEmptyFirstPage
         yield
         false
       rescue NewPageRequiredError
         true
       ensure
-        pdf_state.on_page_create_callback = saved_callback
+        state.on_page_create_callback = delegate
       end
 
       def tare_first_page_content_stream
@@ -952,14 +951,14 @@ module Asciidoctor
         scratch_pdf.font font_family, size: font_size, style: font_style do
           prev_font_scale, scratch_pdf.font_scale = scratch_pdf.font_scale, font_scale
           if keep_together || inhibit_new_page
-            if (restart = perform_on_single_page(scratch_pdf) { scratch_pdf.instance_exec(&block) })
+            if (restart = scratch_pdf.perform_on_single_page { scratch_pdf.instance_exec(&block) })
               # NOTE: propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
               raise NewPageRequiredError if inhibit_new_page
               return ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0 if single_page
             end
           elsif scratch_start_at_top
             scratch_pdf.instance_exec(&block)
-          elsif (restart = stop_if_first_page_empty(scratch_pdf) { scratch_pdf.instance_exec(&block) })
+          elsif (restart = scratch_pdf.stop_if_first_page_empty { scratch_pdf.instance_exec(&block) })
             start_from_top = (start_from_top || 0) + 1
           end
         ensure
