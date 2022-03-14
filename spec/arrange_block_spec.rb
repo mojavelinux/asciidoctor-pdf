@@ -15,7 +15,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
     }
   end
 
-  it 'should paint background across extent of empty block' do
+  it 'should draw background across extent of empty block' do
     pdf = to_pdf <<~'EOS', pdf_theme: pdf_theme, analyze: true
     before block
 
@@ -31,6 +31,42 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
     (expect (pdf.find_unique_text 'after block')[:page_number]).to be 1
     gs = (pdf.extract_graphic_states pages[0][:raw_content])[0]
     (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 714.22], bottom_right: [562.0, 702.22]
+  end
+
+  it 'should not draw backgrounds and borders in scratch document' do
+    pdf_theme[:sidebar_border_color] = '222222'
+    pdf_theme[:sidebar_border_width] = 0.5
+    input = <<~'EOS'
+    before
+
+    [%unbreakable]
+    --
+    ====
+    example
+
+    ****
+    sidebar
+    ****
+
+    example
+    ====
+    --
+    EOS
+    scratch_pdf = nil
+    extensions = proc do
+      postprocessor do
+        process do |doc, output|
+          scratch_pdf = doc.converter.scratch
+          output
+        end
+      end
+    end
+    to_pdf input, pdf_theme: pdf_theme, extensions: extensions
+    scratch_pdf_output = scratch_pdf.render
+    scratch_pdf = (EnhancedPDFTextInspector.analyze scratch_pdf_output)
+    (expect (scratch_pdf.extract_graphic_states scratch_pdf.pages[0][:raw_content])).to be_empty
+    scratch_pdf_lines = (LineInspector.analyze scratch_pdf_output).lines
+    (expect scratch_pdf_lines).to be_empty
   end
 
   describe 'unbreakable block' do

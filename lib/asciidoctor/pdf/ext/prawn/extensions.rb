@@ -875,7 +875,7 @@ module Asciidoctor
         scratch_extent = dry_run(&block)
         # Q: can we encapsulate advance page logic?
         advance_page if (advanced = scratch_extent.from.page > 1)
-        instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &block
+        yield scratch_extent.compute_from page_number, start_cursor, advanced
       end
 
       def arrange_block node, &block
@@ -883,16 +883,16 @@ module Asciidoctor
         #keep_together = (node.option? 'unbreakable') && !at_page_top?
         keep_together = ENV['CI'] ? (node.option? 'unbreakable') && !at_page_top? : !at_page_top?
         doc = node.document
-        block_for_dry_run = proc do
-          push_scratch doc if scratch?
+        block_for_scratch = proc do
+          push_scratch doc
           instance_exec(&block)
         ensure
-          pop_scratch doc if scratch?
+          pop_scratch doc
         end
-        scratch_extent = dry_run keep_together: keep_together, &block_for_dry_run
+        scratch_extent = dry_run keep_together: keep_together, &block_for_scratch
         # Q: can we encapsulate advance page logic?
         advance_page if (advanced = scratch_extent.from.page > 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
-        instance_exec (scratch_extent.compute_from page_number, start_cursor, advanced), &(scratch? ? block_for_dry_run : block)
+        scratch? ? block_for_scratch.call : (yield scratch_extent.compute_from page_number, start_cursor, advanced)
       end
 
       def perform_on_single_page
