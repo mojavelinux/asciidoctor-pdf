@@ -16,7 +16,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
   end
 
   it 'should paint background across extent of empty block' do
-    pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
+    pdf = to_pdf <<~'EOS', pdf_theme: pdf_theme, analyze: true
     before block
 
     ====
@@ -37,7 +37,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
     # NOTE: only add tests that verify at top ignores unbreakable option; otherwise, put test in breakable at top
     describe 'at top' do
       it 'should keep block on current page if it fits' do
-        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
+        pdf = to_pdf <<~'EOS', pdf_theme: pdf_theme, analyze: true
         [%unbreakable]
         ====
         This block fits in the remaining space on the page.
@@ -152,7 +152,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
 
     describe 'below top' do
       it 'should keep block on current page if it fits' do
-        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
+        pdf = to_pdf <<~'EOS', pdf_theme: pdf_theme, analyze: true
         before block
 
         [%unbreakable]
@@ -520,7 +520,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
   describe 'breakable block', breakable: true do
     describe 'at top' do
       it 'should keep block on current page if it fits' do
-        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
+        pdf = to_pdf <<~'EOS', pdf_theme: pdf_theme, analyze: true
         ====
         This block fits in the remaining space on the page.
 
@@ -654,7 +654,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
       end
 
       it 'should split block across pages that contains image taller than page that follows text' do
-        input = <<~EOS
+        input = <<~'EOS'
         ====
         before image
 
@@ -680,7 +680,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
 
     describe 'below top' do
       it 'should keep block on current page if it fits' do
-        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
+        pdf = to_pdf <<~'EOS', pdf_theme: pdf_theme, analyze: true
         before block
 
         ====
