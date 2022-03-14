@@ -66,8 +66,9 @@ module Asciidoctor
           self.to = Position.new end_page, end_cursor
         end
 
-        def compute_from pdf, current_cursor, keep_together = nil
+        def position_onto pdf, keep_together = nil
           current_page = pdf.page_number
+          current_cursor = pdf.cursor
           from_page = current_page + (advance_by = from.page - 1)
           to_page = current_page + (to.page - 1)
           if advance_by > 0 || (advance_by = keep_together && single_page? && !(try_to_fit_on_previous current_cursor) && 1)
@@ -878,12 +879,10 @@ module Asciidoctor
       alias is_scratch? scratch?
 
       def with_dry_run &block
-        start_cursor = cursor
-        yield dry_run(&block).compute_from self, start_cursor
+        yield dry_run(&block).position_onto self, cursor
       end
 
       def arrange_block node, &block
-        start_cursor = cursor
         #keep_together = (node.option? 'unbreakable') && !at_page_top?
         keep_together = ENV['CI'] ? (node.option? 'unbreakable') && !at_page_top? : !at_page_top?
         doc = node.document
@@ -893,8 +892,7 @@ module Asciidoctor
         ensure
           pop_scratch doc
         end
-        scratch_extent = dry_run keep_together: keep_together, &block_for_scratch
-        extent = scratch_extent.compute_from self, start_cursor, keep_together
+        extent = (dry_run keep_together: keep_together, &block_for_scratch).position_onto self, keep_together
         scratch? ? block_for_scratch.call : (yield extent)
       end
 

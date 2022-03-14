@@ -3050,12 +3050,10 @@ module Asciidoctor
 
       def allocate_toc doc, toc_num_levels, toc_start_y, use_title_page
         toc_start_page = page_number
-        toc_start_cursor = cursor
-        scratch_extent = dry_run do
+        extent = (dry_run do
           layout_toc doc, toc_num_levels, toc_start_page, toc_start_y
           move_down @theme.block_margin_bottom unless use_title_page
-        end
-        extent = scratch_extent.compute_from self, toc_start_cursor
+        end).position_onto self
         # NOTE: reserve pages for the toc; leaves cursor on page after last page in toc
         if use_title_page
           extent.each_page { start_new_page }
