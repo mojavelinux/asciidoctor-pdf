@@ -280,6 +280,61 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
         (expect gs).to have_background color: 'FFFFCC', top_left: [50.0, 708.018], bottom_right: [562.0, 279.318]
       end
 
+      it 'should advance nested unbreakable block shorter than page to next page to avoid breaking', breakable: true do
+        before_block_content = ['before block'] * 20 * %(\n\n)
+        nested_block_content = ['nested block content'] * 5 * %(\n\n)
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true, debug: true
+        #{before_block_content}
+
+        ====
+        before nested block
+
+        [%unbreakable]
+        ****
+        #{nested_block_content}
+        ****
+        ====
+        EOS
+
+        pages = pdf.pages
+        (expect pages).to have_size 2
+        (expect (pdf.find_text 'before block')[-1][:page_number]).to be 1
+        (expect (pdf.find_unique_text 'before nested block')[:page_number]).to be 1
+        (expect (pdf.find_text 'nested block content')[0][:page_number]).to be 2
+        p1_gs = (pdf.extract_graphic_states pages[0][:raw_content])
+        (expect p1_gs).to have_size 2
+        (expect p1_gs[0]).to have_background color: 'FFFFCC', top_left: [50.0, 186.4], bottom_right: [562.0, 50.0]
+        p2_gs = (pdf.extract_graphic_states pages[1][:raw_content])
+        (expect p2_gs).to have_size 3
+        (expect p2_gs[0]).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 579.1]
+        (expect p2_gs[2]).to have_background color: 'EEEEEE', top_left: [62.0, 742.0], bottom_right: [550.0, 591.1]
+      end
+
+      it 'should advance block with only nested unbreakable block shorter than page to next page to avoid breaking', breakable: true do
+        before_block_content = ['before block'] * 20 * %(\n\n)
+        nested_block_content = ['nested block content'] * 5 * %(\n\n)
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true, debug: true
+        #{before_block_content}
+
+        ====
+        [%unbreakable]
+        ****
+        #{nested_block_content}
+        ****
+        ====
+        EOS
+
+        pages = pdf.pages
+        (expect pages).to have_size 2
+        (expect (pdf.find_text 'before block')[-1][:page_number]).to be 1
+        (expect (pdf.find_text 'nested block content')[0][:page_number]).to be 2
+        (expect (pdf.extract_graphic_states pages[0][:raw_content])).to be_empty
+        p2_gs = (pdf.extract_graphic_states pages[1][:raw_content])
+        (expect p2_gs).to have_size 2
+        (expect p2_gs[0]).to have_background color: 'FFFFCC', top_left: [50.0, 742.0], bottom_right: [562.0, 567.1]
+        (expect p2_gs[1]).to have_background color: 'EEEEEE', top_left: [62.0, 730.0], bottom_right: [550.0, 579.1]
+      end
+
       it 'should split block taller than page across pages, starting from current position' do
         block_content = ['block content'] * 35 * %(\n\n)
         pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
