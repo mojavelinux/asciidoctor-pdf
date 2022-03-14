@@ -66,9 +66,16 @@ module Asciidoctor
           self.to = Position.new end_page, end_cursor
         end
 
-        def compute_from from_page, current_cursor, advanced
-          current_page = from_page - (advanced ? 1 : 0)
-          Extent.new current_page, current_cursor, current_page - 1 + from.page, from.cursor, current_page - 1 + to.page, to.cursor
+        def compute_from pdf, current_cursor, keep_together = nil
+          current_page = pdf.page_number
+          from_page = current_page + (advance_by = from.page - 1)
+          to_page = current_page + (to.page - 1)
+          if advance_by > 0 || (advance_by = keep_together && single_page? && !(try_to_fit_on_previous current_cursor) && 1)
+            advance_by.times { pdf.advance_page }
+            from_page += advance_by
+            to_page += advance_by
+          end
+          Extent.new current_page, current_cursor, from_page, from.cursor, to_page, to.cursor
         end
 
         def single_page?
@@ -872,10 +879,7 @@ module Asciidoctor
 
       def with_dry_run &block
         start_cursor = cursor
-        scratch_extent = dry_run(&block)
-        # Q: can we encapsulate advance page logic?
-        advance_page if (advanced = scratch_extent.from.page > 1)
-        yield scratch_extent.compute_from page_number, start_cursor, advanced
+        yield dry_run(&block).compute_from self, start_cursor
       end
 
       def arrange_block node, &block
@@ -890,9 +894,8 @@ module Asciidoctor
           pop_scratch doc
         end
         scratch_extent = dry_run keep_together: keep_together, &block_for_scratch
-        # Q: can we encapsulate advance page logic?
-        advance_page if (advanced = scratch_extent.from.page > 1 || (keep_together && scratch_extent.single_page? && !(scratch_extent.try_to_fit_on_previous start_cursor)))
-        scratch? ? block_for_scratch.call : (yield scratch_extent.compute_from page_number, start_cursor, advanced)
+        extent = scratch_extent.compute_from self, start_cursor, keep_together
+        scratch? ? block_for_scratch.call : (yield extent)
       end
 
       def perform_on_single_page

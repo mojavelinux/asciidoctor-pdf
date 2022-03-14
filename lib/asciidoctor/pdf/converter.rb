@@ -3055,9 +3055,7 @@ module Asciidoctor
           layout_toc doc, toc_num_levels, toc_start_page, toc_start_y
           move_down @theme.block_margin_bottom unless use_title_page
         end
-        # Q: can we encapsulate advance page logic?
-        advance_page if (advanced = scratch_extent.from.page > 1)
-        extent = scratch_extent.compute_from toc_start_page, toc_start_cursor, advanced
+        extent = scratch_extent.compute_from self, toc_start_cursor
         # NOTE: reserve pages for the toc; leaves cursor on page after last page in toc
         if use_title_page
           extent.each_page { start_new_page }
