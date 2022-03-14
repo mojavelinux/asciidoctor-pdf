@@ -891,7 +891,7 @@ module Asciidoctor
                   (rule_width = @theme.admonition_column_rule_width || @theme.base_border_width) && rule_width > 0
                 rule_style = @theme.admonition_column_rule_style&.to_sym || :solid
                 float do
-                  extent.each_page do |_pagenum, first_page, last_page|
+                  extent.each_page do |first_page, last_page|
                     advance_page unless first_page
                     rule_segment_height = start_cursor = cursor
                     rule_segment_height -= last_page.cursor if last_page
@@ -1063,7 +1063,7 @@ module Asciidoctor
           end
           if extent && b_left_width
             float do
-              extent.each_page do |_pagenum, first_page, last_page|
+              extent.each_page do |first_page, last_page|
                 advance_page unless first_page
                 b_height = start_cursor = cursor
                 b_height -= last_page.cursor if last_page
@@ -3058,7 +3058,7 @@ module Asciidoctor
         if use_title_page
           extent.each_page { start_new_page }
         else
-          extent.each_page {|_, first_page| start_new_page unless first_page }
+          extent.each_page {|first_page| start_new_page unless first_page }
           move_cursor_to extent.to.cursor
         end
         # FIXME: use Extent class instead
@@ -3812,7 +3812,7 @@ module Asciidoctor
         end
         layout_caption node_with_caption, category: category if node_with_caption
         float do
-          extent.each_page do |_pagenum, first_page, last_page|
+          extent.each_page do |first_page, last_page|
             advance_page unless first_page
             chunk_height = start_cursor = cursor
             chunk_height -= last_page.cursor if last_page

@@ -42,8 +42,8 @@ module Asciidoctor
         end
 
         def each_page
-          from.page.upto to.page do |pagenum|
-            yield pagenum, pagenum == from.page && from, pagenum == to.page && to
+          from.page.upto to.page do |pgnum|
+            yield pgnum == from.page && from, pgnum == to.page && to, pgnum
           end
         end
 
