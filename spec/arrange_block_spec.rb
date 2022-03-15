@@ -283,7 +283,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
       it 'should advance nested unbreakable block shorter than page to next page to avoid breaking', breakable: true do
         before_block_content = ['before block'] * 20 * %(\n\n)
         nested_block_content = ['nested block content'] * 5 * %(\n\n)
-        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true, debug: true
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         #{before_block_content}
 
         ====
@@ -313,7 +313,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
       it 'should advance block with only nested unbreakable block shorter than page to next page to avoid breaking', breakable: true do
         before_block_content = ['before block'] * 20 * %(\n\n)
         nested_block_content = ['nested block content'] * 5 * %(\n\n)
-        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true, debug: true
+        pdf = to_pdf <<~EOS, pdf_theme: pdf_theme, analyze: true
         #{before_block_content}
 
         ====
