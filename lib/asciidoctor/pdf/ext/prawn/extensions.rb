@@ -859,6 +859,13 @@ module Asciidoctor
         last_page? ? (start_new_page options) : (go_to_page page_number + 1)
       end
 
+      ## Switches to the page with the specified page number and, optionally, advances to the specified cursor.
+      ##
+      #def go_to dest_page_number, dest_cursor = nil
+      #  go_to_page dest_page_number
+      #  move_cursor_to dest_cursor if dest_cursor
+      #end
+
       # Start a new page without triggering the on_page_create callback
       #
       def start_new_page_discretely options = {}
