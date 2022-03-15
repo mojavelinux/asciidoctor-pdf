@@ -2958,13 +2958,11 @@ module Asciidoctor
       def layout_caption subject, opts = {}
         if opts.delete :dry_run
           force_top_margin = !at_page_top? if (force_top_margin = opts.delete :force_top_margin).nil?
-          height = (dry_run start_from_top: 0 do
+          return (dry_run keep_together: true, single_page: :enforce do
             # TODO: encapsulate this logic to force top margin to be applied
             margin_box.instance_variable_set :@y, margin_box.absolute_top + 0.0001 if force_top_margin
             layout_caption subject, opts
           end).single_page_height
-          raise ::Prawn::Errors::CannotFit unless height
-          return height
         end
         if ::Asciidoctor::AbstractBlock === subject
           string = (opts.delete :labeled) == false ? subject.title : subject.captioned_title

@@ -934,14 +934,14 @@ module Asciidoctor
         end
       end
 
-      def dry_run keep_together: nil, start_from_top: nil, single_page: nil, &block
+      def dry_run keep_together: nil, pages_advanced: 0, single_page: nil, &block
         (scratch_pdf = scratch).start_new_page
         scratch_bounds = scratch_pdf.bounds
         restore_bounds = [:@total_left_padding, :@total_right_padding, :@width, :@x].each_with_object({}) do |name, accum|
           accum[name] = scratch_bounds.instance_variable_get name
           scratch_bounds.instance_variable_set name, (bounds.instance_variable_get name)
         end
-        scratch_pdf.move_cursor_to cursor unless (scratch_start_at_top = keep_together || start_from_top || at_page_top?)
+        scratch_pdf.move_cursor_to cursor unless (scratch_start_at_top = keep_together || pages_advanced > 0 || at_page_top?)
         scratch_start_cursor = scratch_pdf.cursor
         scratch_start_page = scratch_pdf.page_number
         inhibit_new_page = state.on_page_create_callback == InhibitNewPageProc
@@ -952,21 +952,24 @@ module Asciidoctor
             if (restart = scratch_pdf.perform_on_single_page { scratch_pdf.instance_exec(&block) })
               # NOTE: propogate NewPageRequiredError from nested block, which is rendered in separate scratch document
               raise NewPageRequiredError if inhibit_new_page
-              return ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0 if single_page
+              if single_page
+                raise ::Prawn::Errors::CannotFit if single_page == :enforce
+                return ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0
+              end
             end
           elsif scratch_start_at_top
             scratch_pdf.instance_exec(&block)
           elsif (restart = scratch_pdf.stop_if_first_page_empty { scratch_pdf.instance_exec(&block) })
-            start_from_top = (start_from_top || 0) + 1
+            pages_advanced += 1
           end
         ensure
           scratch_pdf.font_scale = prev_font_scale
         end
-        return dry_run keep_together: false, start_from_top: start_from_top, &block if restart
+        return dry_run keep_together: false, pages_advanced: pages_advanced, &block if restart
         scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
-        if start_from_top
-          scratch_start_page += start_from_top
-          scratch_end_page += start_from_top
+        if pages_advanced
+          scratch_start_page += pages_advanced
+          scratch_end_page += pages_advanced
         end
         scratch_end_cursor = scratch_pdf.cursor
         # NOTE: drop trailing blank page and move cursor to end of previous page
