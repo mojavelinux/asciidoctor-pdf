@@ -378,7 +378,7 @@ describe 'Asciidoctor::PDF::Converter#arrange_block' do
           end
         end
         pdf = with_content_spacer 10, 650 do |spacer_path|
-          to_pdf <<~EOS, pdf_theme: pdf_theme, extensions: extensions, analyze: true, debug: true
+          to_pdf <<~EOS, pdf_theme: pdf_theme, extensions: extensions, analyze: true
           image::#{spacer_path}[]
 
           ****

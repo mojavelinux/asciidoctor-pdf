@@ -71,10 +71,12 @@ module Asciidoctor
           current_cursor = pdf.cursor
           from_page = current_page + (advance_by = from.page - 1)
           to_page = current_page + (to.page - 1)
-          if advance_by > 0 || (advance_by = keep_together && single_page? && !(try_to_fit_on_previous current_cursor) && 1)
+          if advance_by > 0
             advance_by.times { pdf.advance_page }
-            from_page += advance_by
-            to_page += advance_by
+          elsif keep_together && single_page? && !(try_to_fit_on_previous current_cursor)
+            pdf.advance_page
+            from_page += 1
+            to_page += 1
           end
           Extent.new current_page, current_cursor, from_page, from.cursor, to_page, to.cursor
         end
