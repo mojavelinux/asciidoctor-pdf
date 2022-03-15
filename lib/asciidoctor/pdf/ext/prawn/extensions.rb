@@ -917,6 +917,7 @@ module Asciidoctor
         state.on_page_create_callback = delegate
       end
 
+      # NOTE: only used in dry_run since that's when DetectEmptyFirstPage is active
       def tare_first_page_content_stream
         return yield unless DetectEmptyFirstPage === (delegate = state.on_page_create_callback)
         on_page_create_called = nil
