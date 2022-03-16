@@ -967,7 +967,7 @@ module Asciidoctor
         ensure
           scratch_pdf.font_scale = prev_font_scale
         end
-        return dry_run keep_together: false, pages_advanced: pages_advanced, &block if restart
+        return dry_run pages_advanced: pages_advanced, &block if restart
         scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
         if pages_advanced
           scratch_start_page += pages_advanced
@@ -979,7 +979,6 @@ module Asciidoctor
           scratch_end_page -= 1
           scratch_end_cursor = 0
         end
-        # Q: should start page be virtual or should it be actual and pass the offset on which we started
         ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_end_page, scratch_end_cursor
       ensure
         restore_bounds.each {|name, val| scratch_bounds.instance_variable_set name, val }
