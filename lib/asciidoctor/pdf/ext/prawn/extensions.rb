@@ -884,6 +884,24 @@ module Asciidoctor
         yield dry_run(&block).position_onto self, cursor
       end
 
+      # Yields to the specified block multiple times, first to determine where to render the content
+      # so it fits properly, then once more, this time providing access to the content's extent, to
+      # ink the content in the primary document.
+      #
+      # This method yields to the specified block in a scratch document by calling dry_run to
+      # determine where the content should start in the primary document. In the process, it also
+      # computes the extent of the content. It then returns to the primary document and yields to
+      # the block again, this time passing in the extent of the content. The extent can be used to
+      # draw a border and/or background under the content before inking it.
+      #
+      # This method is intended to enclose the conversion of a single content block, such as a
+      # sidebar or example block. The arrange logic attempts to keep unbreakable content on the same
+      # page, keeps the top caption pinned to the top of the content, computes the extent of the
+      # content for the purpose of drawing a border and/or background underneath it, and ensures
+      # that the extent does not begin near the bottom of a page if the first line of content
+      # doesn't fit. If unbreakable content does not fit on a single page, it is treated as treated
+      # as breakable.
+      #
       def arrange_block node, &block
         #keep_together = (node.option? 'unbreakable') && !at_page_top?
         keep_together = ENV['CI'] ? (node.option? 'unbreakable') && !at_page_top? : !at_page_top?
@@ -936,6 +954,44 @@ module Asciidoctor
         end
       end
 
+      # Yields to the specified block in a scratch document up to three times to acertain the extent
+      # of the content.
+      #
+      # The purpose of this method is two-fold. First, it works out the position where the rendered
+      # content should start in the calling document. Then, it precomputes the extent of the content
+      # starting from that position.
+      #
+      # The method communicates the extent of the content (the range from the start page and cursor
+      # to the end page and cursor) as a ScratchExtent instance. The ScratchExtent always starts the
+      # page range at 1. When the ScratchExtent is positioned onto the primary document using
+      # ScratchExtent#position_onto, that's when the cursor may be advanced to the next page.
+      #
+      # This method performs all work in a scratch document (or documents). It begins by starting a
+      # new page in the scratch document, first creating the scratch document if necessary. It then
+      # applies all the settings from the main document to the scratch document that impact
+      # rendering. This includes the bounds, the cursor position, and the font settings.
+      #
+      # From this point, the number of attempts the method makes is determined by the value of the
+      # keep_together keyword parameter. If the value is true (or the parent document is inhibiting
+      # page creation), it starts from the top of the page, yields to the block, and tries to fit
+      # the content on the current page. If the content fits, it computes and returns the
+      # ScratchExtent. If the content does not fit, it first checks if this scenario should stop the
+      # operation. If the parent document is inhibiting page creation, it bubbles the error. If the
+      # single_page keyword argument is :enforce, it raises a CannotFit error. If the single_page
+      # keyword argument is true, it returns a ScratchExtent that represents a full page. If none of
+      # those conditions are met, it restarts with the keep_together parameter unset.
+      #
+      # If the keep_together parameter is not true, the method tries to render the content in the
+      # scratch document from the location of the cursor in the main document. If the cursor is at
+      # the top of the page, no special conditions are applied (this is the last attempt). The
+      # content is rendered and the extent is computed based on where the content ended up (minus a
+      # trailing empty page). If the cursor is not at the top of the page, the method renders the
+      # content while listening for a page creation event before any content is written. If a new
+      # page is created, and no content is written on the first page, the method restarts with the
+      # cursor at the top of the page.
+      #
+      # Note that if the block has content that itself requires a dry run, that nested dry run will
+      # be performed in a separate scratch document.
       def dry_run keep_together: nil, pages_advanced: 0, single_page: nil, &block
         (scratch_pdf = scratch).start_new_page
         scratch_bounds = scratch_pdf.bounds
