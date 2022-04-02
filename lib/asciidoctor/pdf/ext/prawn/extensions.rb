@@ -912,7 +912,7 @@ module Asciidoctor
         ensure
           pop_scratch doc
         end
-        extent = (dry_run keep_together: keep_together, &block_for_scratch).position_onto self, keep_together
+        extent = dry_run keep_together: keep_together, onto: [self, keep_together], &block_for_scratch
         scratch? ? block_for_scratch.call : (yield extent)
       end
 
@@ -992,7 +992,7 @@ module Asciidoctor
       #
       # Note that if the block has content that itself requires a dry run, that nested dry run will
       # be performed in a separate scratch document.
-      def dry_run keep_together: nil, pages_advanced: 0, single_page: nil, &block
+      def dry_run keep_together: nil, pages_advanced: 0, single_page: nil, onto: nil, &block
         (scratch_pdf = scratch).start_new_page
         scratch_bounds = scratch_pdf.bounds
         restore_bounds = [:@total_left_padding, :@total_right_padding, :@width, :@x].each_with_object({}) do |name, accum|
@@ -1012,7 +1012,8 @@ module Asciidoctor
               raise NewPageRequiredError if inhibit_new_page
               if single_page
                 raise ::Prawn::Errors::CannotFit if single_page == :enforce
-                return ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0
+                extent = ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_start_page, 0
+                return onto ? extent.position_onto(*onto) : extent
               end
             end
           elsif scratch_start_at_top
@@ -1023,7 +1024,7 @@ module Asciidoctor
         ensure
           scratch_pdf.font_scale = prev_font_scale
         end
-        return dry_run pages_advanced: pages_advanced, &block if restart
+        return dry_run pages_advanced: pages_advanced, onto: onto, &block if restart
         scratch_end_page = scratch_pdf.page_number - scratch_start_page + (scratch_start_page = 1)
         if pages_advanced
           scratch_start_page += pages_advanced
@@ -1035,7 +1036,8 @@ module Asciidoctor
           scratch_end_page -= 1
           scratch_end_cursor = 0
         end
-        ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_end_page, scratch_end_cursor
+        extent = ScratchExtent.new scratch_start_page, scratch_start_cursor, scratch_end_page, scratch_end_cursor
+        onto ? extent.position_onto(*onto) : extent
       ensure
         restore_bounds.each {|name, val| scratch_bounds.instance_variable_set name, val }
       end
