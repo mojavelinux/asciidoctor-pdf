@@ -732,8 +732,8 @@ describe 'Asciidoctor::PDF::Converter - Section' do
     end
   end
 
-  it 'should not add chapter label to chapter title if section numbering is enabled and chapter-signifier attribute is empty' do
-    %w(chapter-signifier).each do |attr_name|
+  it 'should not add chapter signifier to chapter title if sectnums is enabled and chapter-signifier attribute is unset or empty' do
+    %w(!chapter-signifier chapter-signifier).each do |attr_name|
       pdf = to_pdf <<~EOS, analyze: true
       = Book Title
       :doctype: book

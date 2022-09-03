@@ -10,10 +10,12 @@ class Asciidoctor::Section
           case slevel
           when 0
             @cached_numbered_title = %(#{sectnum nil, ':'} #{title})
-            @cached_formal_numbered_title = %(#{@document.attr 'part-signifier', 'Part'} #{@cached_numbered_title}).lstrip
+            signifier = @document.attributes['part-signifier'] || ((@document.attr_unspecified? 'part-signifier') ? 'Part' : '')
+            @cached_formal_numbered_title = %(#{signifier} #{@cached_numbered_title}).lstrip
           when 1
             @cached_numbered_title = %(#{sectnum} #{title})
-            @cached_formal_numbered_title = %(#{@document.attr 'chapter-signifier', 'Chapter'} #{@cached_numbered_title}).lstrip
+            signifier = @document.attributes['chapter-signifier'] || ((@document.attr_unspecified? 'chapter-signifier') ? 'Chapter' : '')
+            @cached_formal_numbered_title = %(#{signifier} #{@cached_numbered_title}).lstrip
           else
             @cached_formal_numbered_title = @cached_numbered_title = %(#{sectnum} #{title})
           end
