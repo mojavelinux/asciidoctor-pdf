@@ -45,42 +45,42 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        ruby: [jruby-9.3.7.0, '2.7', '3.1']
+        ruby: [jruby-9.3.7.0]
         asciidoctor-version: [~]
         asciidoctor-diagram-version: ['~> 2.2']
         asciidoctor-kroki-version: [~]
         rouge-version: [~]
         upstream: [~]
-        exclude:
-        # remove 3.1 on ubuntu-latest to mark as primary
-        - os: ubuntu-latest
-          ruby: '3.1'
+        #exclude:
+        ## remove 3.1 on ubuntu-latest to mark as primary
+        #- os: ubuntu-latest
+        #  ruby: '3.1'
         include:
         - os: ubuntu-latest
           ruby: jruby-9.2
-        - os: ubuntu-latest
-          ruby: '3.0'
-        - os: macos-latest
-          ruby: '3.1'
-        - os: ubuntu-latest
-          ruby: '2.7'
-          asciidoctor-version: '2.0.10'
-          rouge-version: '~> 2.0.0'
-        - os: windows-latest
-          ruby: '3.1'
-          asciidoctor-diagram-version: ~
-          asciidoctor-kroki-version: '0.5.0'
-        # NOTE: enable once Asciidoctor 2.1.0 is released
+        #- os: ubuntu-latest
+        #  ruby: '3.0'
+        #- os: macos-latest
+        #  ruby: '3.1'
+        #- os: ubuntu-latest
+        #  ruby: '2.7'
+        #  asciidoctor-version: '2.0.10'
+        #  rouge-version: '~> 2.0.0'
+        #- os: windows-latest
+        #  ruby: '3.1'
+        #  asciidoctor-diagram-version: ~
+        #  asciidoctor-kroki-version: '0.5.0'
+        ## NOTE: enable once Asciidoctor 2.1.0 is released
+        ##- os: ubuntu-latest
+        ##  ruby: '3.1'
+        ##  asciidoctor-version: '~> 2.0.0'
         #- os: ubuntu-latest
         #  ruby: '3.1'
-        #  asciidoctor-version: '~> 2.0.0'
-        - os: ubuntu-latest
-          ruby: '3.1'
-          upstream: upstream
-        - os: ubuntu-latest
-          ruby: '3.1'
-          rouge-version: '~> 4.0.0'
-          primary: primary
+        #  upstream: upstream
+        #- os: ubuntu-latest
+        #  ruby: '3.1'
+        #  rouge-version: '~> 4.0.0'
+        #  primary: primary
     runs-on: ${{ matrix.os }}
     env:
       PYGMENTS_VERSION: '~> 2.0'
