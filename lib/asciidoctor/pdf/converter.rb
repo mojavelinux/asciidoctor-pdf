@@ -1431,7 +1431,11 @@ module Asciidoctor
         when 'horizontal'
           table_data = []
           term_padding = term_padding_no_blocks = term_font_color = term_transform = desc_padding = term_line_metrics = term_inline_format = term_kerning = nil
-          max_term_width = 0
+          if (labelwidth = node.attr 'labelwidth')
+            fixed_term_width = bounds.width * (labelwidth.to_f / 100)
+          else
+            max_term_width = 0
+          end
           theme_font :description_list_term do
             term_font_color = @font_color
             term_transform = @text_transform
@@ -1447,7 +1451,7 @@ module Asciidoctor
             terms, desc = item
             term_text = terms.map(&:text).join ?\n
             term_text = transform_text term_text, term_transform if term_transform
-            if (term_width = width_of term_text, inline_format: term_inline_format, kerning: term_kerning) > max_term_width
+            if !fixed_term_width && (term_width = width_of term_text, inline_format: term_inline_format, kerning: term_kerning) > max_term_width
               max_term_width = term_width
             end
             row_data = [{
@@ -1471,8 +1475,11 @@ module Asciidoctor
             end
             table_data << row_data
           end
-          max_term_width += (term_padding[1] + term_padding[3])
-          term_column_width = [max_term_width, bounds.width * 0.5].min
+          if fixed_term_width
+            term_column_width = fixed_term_width + term_padding[1] + term_padding[3]
+          else
+            term_column_width = [max_term_width + term_padding[1] + term_padding[3], bounds.width * 0.5].min
+          end
           table table_data, position: :left, column_widths: [term_column_width] do
             cells.style border_width: 0
             @pdf.ink_table_caption node if node.title?
@@ -2098,7 +2105,7 @@ module Asciidoctor
             table_data << (row.map do |cell|
               cell_data = base_cell_data.merge \
                 colspan: cell.colspan || 1,
-                rowspan: cell.rowspan || 1,
+                rowspan: [cell.rowspan || 1, num_rows].min,
                 align: (cell.attr 'halign').to_sym,
                 valign: (val = cell.attr 'valign') == 'middle' ? :center : val.to_sym,
                 source_location: cell.source_location
