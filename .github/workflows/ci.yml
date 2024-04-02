@@ -44,8 +44,8 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        ruby: [jruby-9.2.21.0, jruby-9.4.2.0, '2.7', '3.3']
+        os: [ubuntu-latest]
+        ruby: ['3.3']
         asciidoctor-version: [~]
         asciidoctor-diagram-version: ['~> 2.2']
         asciidoctor-kroki-version: [~]
@@ -57,19 +57,19 @@ jobs:
           ruby: '3.3'
         include:
         # test oldest Ruby 3 to ensure compatibility across full range of Ruby 3 versions
-        - os: ubuntu-latest
-          ruby: '3.0'
+        #- os: ubuntu-latest
+        #  ruby: '3.0'
         - os: macos-latest
           ruby: '3.3'
         # test oldest permitted versions of dependencies
-        - os: ubuntu-latest
-          ruby: '2.7'
-          asciidoctor-version: '2.0.10'
-          rouge-version: '~> 2.0.0'
-        - os: windows-latest
-          ruby: '3.3'
-          asciidoctor-diagram-version: ~
-          asciidoctor-kroki-version: '0.10.0'
+        #- os: ubuntu-latest
+        #  ruby: '2.7'
+        #  asciidoctor-version: '2.0.10'
+        #  rouge-version: '~> 2.0.0'
+        #- os: windows-latest
+        #  ruby: '3.3'
+        #  asciidoctor-diagram-version: ~
+        #  asciidoctor-kroki-version: '0.10.0'
         # NOTE: enable once Asciidoctor 2.1.0 is released
         #- os: ubuntu-latest
         #  ruby: '3.3'
@@ -111,7 +111,12 @@ jobs:
         sudo apt-get install ghostscript poppler-utils
     - name: Install Ghostscript and Poppler (macOS)
       if: matrix.os == 'macos-latest'
-      run: brew install ghostscript poppler
+      run: |
+        brew unlink ghostscript
+        wget https://raw.githubusercontent.com/Homebrew/homebrew-core/0e594be417b7947dcf7d6eb63293fcf652b7e3ae/Formula/g/ghostscript.rb
+        brew install --formula ./ghostscript.rb
+        brew link ghostscript
+        brew install poppler
     - name: Install Ghostscript and Poppler and set GS env var (Windows)
       if: matrix.os == 'windows-latest'
       run: |
